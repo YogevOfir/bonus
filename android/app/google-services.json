@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "460105482088",
+    "project_id": "bonusgame-52eb6",
+    "storage_bucket": "bonusgame-52eb6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460105482088:android:ba7246fd0932d07591a0dd",
+        "android_client_info": {
+          "package_name": "com.company.bonus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZuTntqrq68-2NifozmT755uFkP9RFMdo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
