@@ -407,6 +407,10 @@ class GameLogic extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (!_validatePlacementTouchesExisting()) {
+      _showErrorDialog('At least one letter must touch an existing word on the board.');
+      return;
+    }
     if (!await _validateWords()) {
       _showErrorDialog('All words must be valid.');
       return;
@@ -786,5 +790,41 @@ class GameLogic extends ChangeNotifier {
 
   void setPlayer1Name(String name) {
     _player1Name = name;
+  }
+
+  bool _validatePlacementTouchesExisting() {
+    // Skip validation for the first turn (when no letters are permanent yet)
+    bool hasPermanentLetters = false;
+    for (final tile in _board) {
+      if (tile?.isPermanent == true) {
+        hasPermanentLetters = true;
+        break;
+      }
+    }
+    if (!hasPermanentLetters) {
+      return true; // First turn, no need to check
+    }
+
+    // Check if at least one placed letter touches an existing permanent letter
+    for (final placedIndex in _placedThisTurn) {
+      final row = placedIndex ~/ 12;
+      final col = placedIndex % 12;
+      
+      // Check all 4 adjacent positions (up, down, left, right)
+      final adjacentPositions = [
+        if (row > 0) (row - 1) * 12 + col, // up
+        if (row < 11) (row + 1) * 12 + col, // down
+        if (col > 0) row * 12 + (col - 1), // left
+        if (col < 11) row * 12 + (col + 1), // right
+      ];
+      
+      for (final adjIndex in adjacentPositions) {
+        if (_board[adjIndex]?.isPermanent == true && _board[adjIndex]?.letter != null) {
+          return true; // Found a touching permanent letter
+        }
+      }
+    }
+    
+    return false; // No placed letter touches an existing letter
   }
 } 

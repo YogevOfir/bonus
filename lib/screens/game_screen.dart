@@ -288,32 +288,44 @@ class _GameScreenState extends State<GameScreen> {
     bool canDrag = isMyTurn && (handOwnerId == widget.localPlayerId);
 
     return Center(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: hand.map((letter) {
-            final letterTile = LetterTile(letter: letter);
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: canDrag
-                  ? Draggable<DraggableLetter>(
-                      data: DraggableLetter(letter: letter, origin: LetterOrigin.hand, fromIndex: -1), // fromIndex -1 for hand
-                      feedback: Material(elevation: 4.0, child: letterTile),
-                      childWhenDragging: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                      ),
-                      child: letterTile,
-                    )
-                  : letterTile, // If not draggable, just show the tile
-            );
-          }).toList(),
-        ),
+      child: DragTarget<DraggableLetter>(
+        builder: (context, candidateData, rejectedData) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: hand.map((letter) {
+                final letterTile = LetterTile(letter: letter);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  child: canDrag
+                      ? Draggable<DraggableLetter>(
+                          data: DraggableLetter(letter: letter, origin: LetterOrigin.hand, fromIndex: -1),
+                          feedback: Material(elevation: 4.0, child: letterTile),
+                          childWhenDragging: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                          ),
+                          child: letterTile,
+                        )
+                      : letterTile,
+                );
+              }).toList(),
+            ),
+          );
+        },
+        onWillAccept: (data) {
+          // Only allow returning if it's from the board, it's the player's turn, and not permanent
+          return isMyTurn && data?.origin == LetterOrigin.board;
+        },
+        onAccept: (draggableLetter) {
+          final gameLogic = Provider.of<GameLogic>(context, listen: false);
+          gameLogic.returnLetterToHand(draggableLetter);
+        },
       ),
     );
   }
