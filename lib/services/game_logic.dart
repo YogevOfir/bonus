@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/letter.dart';
 import '../models/board_tile.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class GameLogic extends ChangeNotifier {
   late List<Letter> _letterPool;
@@ -18,11 +19,16 @@ class GameLogic extends ChangeNotifier {
   int _currentPlayer = 1;
   int _player1Score = 0;
   int _player2Score = 0;
+  String? _roomID;
+  String _player1Name = 'Player 1';
+  String _player2Name = '';
+  int _localPlayerId = 1;
 
-  late final List<int> _bonusIndices;
+  List<int> _bonusIndices = [];
 
   Timer? _timer;
-  int _remainingTime = 600;
+  int? _turnStartTimestamp; // UTC milliseconds
+  int _serverTimeOffset = 0; // in ms, local - server
 
   late Trie _wordTrie;
   bool _wordsLoaded = false;
@@ -36,6 +42,7 @@ class GameLogic extends ChangeNotifier {
   int _player2QuadTurns = 0;
   bool _player1ExtraMove = false;
   bool _player2ExtraMove = false;
+  bool _isSynced = false;
 
   List<Letter> get player1Hand => _player1Hand;
   List<Letter> get player2Hand => _player2Hand;
@@ -44,12 +51,147 @@ class GameLogic extends ChangeNotifier {
   int get player1Score => _player1Score;
   int get player2Score => _player2Score;
   List<Letter> get letterPool => _letterPool;
-  int get remainingTime => _remainingTime;
+  int get remainingTime {
+    if (_turnStartTimestamp == null) return 600;
+    final now = DateTime.now().millisecondsSinceEpoch - _serverTimeOffset;
+    final elapsed = ((now - _turnStartTimestamp!) / 1000).floor();
+    return (600 - elapsed).clamp(0, 600);
+  }
   bool get wordsLoaded => _wordsLoaded;
+  String get player1Name => _player1Name;
+  String get player2Name => _player2Name;
+  bool get isSynced => _isSynced;
 
   GameLogic() {
     _initializeLetterPool();
-    _loadWords().then((_) => startGame());
+    _loadWords().then((_) {
+      startGame();
+      _isSynced = true; // A local game is synced by default
+    });
+  }
+
+  // Constructor for online games where the state will be synced from Firebase
+  GameLogic.online() {
+    _board = List.generate(144, (index) => BoardTile());
+    _letterPool = [];
+    _loadWords();
+  }
+
+  void setLocalPlayerId(int playerId) {
+    _localPlayerId = playerId;
+  }
+
+  void setRoomID(String roomID) {
+    _roomID = roomID;
+  }
+
+  void _updateFirebase() {
+    if (_roomID == null || _roomID!.isEmpty) return;
+
+    final db = FirebaseDatabase.instance.ref();
+    db.child('rooms/$_roomID').update({
+      'player1Score': _player1Score,
+      'player2Score': _player2Score,
+      'turn': _currentPlayer == 1 ? 'player1' : 'player2',
+      'boardState': _board.map((t) => t?.toJson() ?? {}).toList(),
+      'player1Hand': _player1Hand.map((l) => l.toString()).toList(),
+      'player2Hand': _player2Hand.map((l) => l.toString()).toList(),
+      'letterPool': _letterPool.map((l) => l.toString()).toList(),
+      'turnStartTimestamp': _turnStartTimestamp ?? DateTime.now().millisecondsSinceEpoch,
+      'players': {
+        'player1': _player1Name,
+        if (_player2Name.isNotEmpty) 'player2': _player2Name,
+      }
+    });
+  }
+
+  void syncFromFirebase(Map<dynamic, dynamic> data) async {
+    print('--- SYNCING FROM FIREBASE ---');
+    if (data['player1Score'] != null) {
+      _player1Score = data['player1Score'];
+      print('Synced player1Score: $_player1Score');
+    }
+    if (data['player2Score'] != null) {
+      _player2Score = data['player2Score'];
+      print('Synced player2Score: $_player2Score');
+    }
+    if (data['turn'] != null) {
+      _currentPlayer = data['turn'] == 'player1' ? 1 : 2;
+      print('Synced turn: $_currentPlayer');
+    }
+
+    if (data['players'] != null) {
+      _player1Name = data['players']['player1'] ?? 'Player 1';
+      _player2Name = data['players']['player2'] ?? 'Player 2';
+      print('Synced names: $_player1Name, $_player2Name');
+    }
+
+    if (data['boardState'] != null) {
+      final boardFromDb = List<dynamic>.from(data['boardState']);
+      final newBonusIndices = <int>[];
+      if (_board.length == boardFromDb.length) {
+        _board = List.generate(boardFromDb.length, (index) {
+          final val = boardFromDb[index];
+          if (val == null || val.isEmpty) return BoardTile();
+          final tile = BoardTile.fromJson(Map<String, dynamic>.from(val));
+          if (tile.bonus != null) {
+            newBonusIndices.add(index);
+          }
+          return tile;
+        });
+        _bonusIndices = newBonusIndices;
+        print('Synced boardState and reconstructed bonus indices');
+      }
+    }
+
+    if (data['player1Hand'] != null) {
+      final handFromDb = List<dynamic>.from(data['player1Hand']);
+      _player1Hand.clear();
+      _player1Hand.addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      print('Synced player1Hand');
+    }
+
+    if (data['player2Hand'] != null) {
+      final handFromDb = List<dynamic>.from(data['player2Hand']);
+      _player2Hand.clear();
+      _player2Hand.addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      print('Synced player2Hand');
+    }
+
+    if (data['letterPool'] != null) {
+      final poolFromDb = List<dynamic>.from(data['letterPool']);
+      _letterPool.clear();
+      _letterPool.addAll(poolFromDb.map((s) => Letter.fromString(s.toString())));
+      print('Synced letterPool');
+    }
+    
+    if (data['turnStartTimestamp'] != null) {
+      _turnStartTimestamp = data['turnStartTimestamp'];
+      print('Synced turnStartTimestamp: \\$_turnStartTimestamp');
+      // Calculate server time offset on first sync or if offset is too large
+      final serverNow = await _fetchServerTime();
+      final localNow = DateTime.now().millisecondsSinceEpoch;
+      final offset = localNow - serverNow;
+      if (_serverTimeOffset == 0 || (_serverTimeOffset - offset).abs() > 2000) {
+        _serverTimeOffset = offset;
+        print('Updated server time offset: \\$_serverTimeOffset ms');
+      }
+    }
+
+    if (!_isSynced) {
+      _isSynced = true;
+      print('**** First sync complete! ****');
+    }
+
+    // Start a local timer to update UI every second
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      notifyListeners();
+      if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
+        endTurn();
+      }
+    });
+    notifyListeners();
   }
 
   @override
@@ -221,6 +363,11 @@ class GameLogic extends ChangeNotifier {
     _drawLetters(_player2Hand, 8);
     _startTurnTimer();
 
+    // If this is an online game, push the initial state to Firebase
+    if (_roomID != null && _roomID!.isNotEmpty) {
+      _updateFirebase();
+    }
+
     notifyListeners();
   }
 
@@ -233,16 +380,24 @@ class GameLogic extends ChangeNotifier {
   }
 
   Future<void> endTurn() async {
+    // Prevent ending turn if it's not the current player's turn
+    if (_localPlayerId != _currentPlayer) {
+      _showErrorDialog("It's not your turn!");
+      return;
+    }
+
     if (_placedThisTurn.isEmpty) {
       _showErrorDialog('No words placed, turn passed.');
       _timer?.cancel();
       _currentPlayer = (_currentPlayer == 1) ? 2 : 1;
       _startTurnTimer();
+      _updateFirebase(); // Sync passed turn
       notifyListeners();
       return;
     }
     if (!_validatePlacement()) {
-      _showErrorDialog('All placed tiles must be in a single row or column and contiguous.');
+      _showErrorDialog(
+          'All placed tiles must be in a single row or column and contiguous.');
       return;
     }
     if (!await _validateWords()) {
@@ -262,7 +417,8 @@ class GameLogic extends ChangeNotifier {
     if (isGameOver()) {
       // Handle game over logic
     } else {
-      bool extraMove = _currentPlayer == 1 ? _player1ExtraMove : _player2ExtraMove;
+      bool extraMove =
+          _currentPlayer == 1 ? _player1ExtraMove : _player2ExtraMove;
       if (extraMove) {
         if (_currentPlayer == 1) {
           _player1ExtraMove = false;
@@ -272,72 +428,53 @@ class GameLogic extends ChangeNotifier {
         // Do not switch player, just start timer for same player
         _startTurnTimer();
       } else {
+        print("End Turn for Player $_currentPlayer: Switching turn.");
         _currentPlayer = (_currentPlayer == 1) ? 2 : 1;
+        print("End Turn: New current player is $_currentPlayer.");
         _startTurnTimer();
       }
     }
+    print("End Turn: Calling updateFirebase with player $_currentPlayer");
+    _updateFirebase();
     notifyListeners();
   }
 
   void _addScoreForTurn() {
-    final words = _extractWordsForPlacedTilesWithBonuses();
+    final words = wordsWithScoresForTurn();
     int total = 0;
     bool extraMove = false;
-    for (final wordData in words) {
-      final word = wordData['word'] as String;
-      final bonus = wordData['bonus'] as BonusInfo?;
-      int wordScore = 0;
-      for (final ch in word.characters) {
-        wordScore += _letterScore(ch);
-      }
-      // Apply score bonus
-      if (bonus != null && bonus.type == BonusType.score && bonus.scoreValue != null) {
-        wordScore += bonus.scoreValue!;
-      }
-      // Apply future bonuses
-      if (bonus != null && bonus.type == BonusType.futureDouble) {
-        if (_currentPlayer == 1) {
-          _player1DoubleTurns += 2;
-        } else {
-          _player2DoubleTurns += 2;
+    words.then((wordList) {
+      for (final wordData in wordList) {
+        total += wordData['score'] as int;
+        // Handle bonuses that give extra turns
+        final bonus = wordData['bonus'] as BonusInfo?;
+        if (bonus?.type == BonusType.extraMove) {
+          extraMove = true;
         }
       }
-      if (bonus != null && bonus.type == BonusType.futureQuad) {
-        if (_currentPlayer == 1) {
-          _player1QuadTurns += 1;
-        } else {
-          _player2QuadTurns += 1;
+      // Apply future bonuses if active
+      if (_currentPlayer == 1) {
+        if (_player1QuadTurns > 0) {
+          total *= 4;
+          _player1QuadTurns--;
+        } else if (_player1DoubleTurns > 0) {
+          total *= 2;
+          _player1DoubleTurns--;
         }
+        _player1Score += total;
+        _player1ExtraMove = extraMove;
+      } else {
+        if (_player2QuadTurns > 0) {
+          total *= 4;
+          _player2QuadTurns--;
+        } else if (_player2DoubleTurns > 0) {
+          total *= 2;
+          _player2DoubleTurns--;
+        }
+        _player2Score += total;
+        _player2ExtraMove = extraMove;
       }
-      // Apply extra move
-      if (bonus != null && bonus.type == BonusType.extraMove) {
-        extraMove = true;
-      }
-      // Word game bonus: no logic for now
-      total += wordScore;
-    }
-    // Apply future bonuses if active
-    if (_currentPlayer == 1) {
-      if (_player1QuadTurns > 0) {
-        total *= 4;
-        _player1QuadTurns--;
-      } else if (_player1DoubleTurns > 0) {
-        total *= 2;
-        _player1DoubleTurns--;
-      }
-      _player1Score += total;
-      _player1ExtraMove = extraMove;
-    } else {
-      if (_player2QuadTurns > 0) {
-        total *= 4;
-        _player2QuadTurns--;
-      } else if (_player2DoubleTurns > 0) {
-        total *= 2;
-        _player2DoubleTurns--;
-      }
-      _player2Score += total;
-      _player2ExtraMove = extraMove;
-    }
+    });
   }
 
   int _letterScore(String ch) {
@@ -361,14 +498,20 @@ class GameLogic extends ChangeNotifier {
   }
 
   void _makePlacedLettersPermanent() {
-    for (final tile in _board) {
-      if (tile?.letter != null) {
-        tile?.isPermanent = true;
+    for (final index in _placedThisTurn) {
+      if (_board[index]?.letter != null) {
+        _board[index]?.isPermanent = true;
       }
     }
   }
 
   void moveLetter(DraggableLetter draggableLetter, int toIndex) {
+    // Prevent moving letters if it's not the current player's turn
+    if (_localPlayerId != _currentPlayer) {
+      _showErrorDialog("It's not your turn!");
+      return;
+    }
+
     if (_board[toIndex]?.isPermanent == true) return;
 
     if (draggableLetter.origin == LetterOrigin.board) {
@@ -391,6 +534,12 @@ class GameLogic extends ChangeNotifier {
   }
 
   void returnLetterToHand(DraggableLetter draggableLetter) {
+    // Prevent returning letters if it's not the current player's turn
+    if (_localPlayerId != _currentPlayer) {
+      _showErrorDialog("It's not your turn!");
+      return;
+    }
+
     if (draggableLetter.origin != LetterOrigin.board) return;
     if (_board[draggableLetter.fromIndex!]?.isPermanent == true) return;
 
@@ -418,15 +567,18 @@ class GameLogic extends ChangeNotifier {
   }
 
   void _startTurnTimer() {
-    _remainingTime = 600;
+    _turnStartTimestamp = DateTime.now().millisecondsSinceEpoch;
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingTime > 0) {
-        _remainingTime--;
-        notifyListeners();
-      } else {
+      notifyListeners();
+      if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
         endTurn();
       }
     });
+    // Only update Firebase if online game
+    if (_roomID != null && _roomID!.isNotEmpty) {
+      _updateFirebase();
+    }
   }
 
   Future<void> _loadWords() async {
@@ -606,5 +758,19 @@ class GameLogic extends ChangeNotifier {
       results.add({'word': word, 'isValid': isValid, 'score': score, 'bonus': bonus});
     }
     return results;
+  }
+
+  Future<int> _fetchServerTime() async {
+    final db = FirebaseDatabase.instance.ref();
+    final tempRef = db.child('serverTimeForSync').push();
+    await tempRef.set(ServerValue.timestamp);
+    final snap = await tempRef.get();
+    final serverTime = snap.value as int?;
+    await tempRef.remove();
+    return serverTime ?? DateTime.now().millisecondsSinceEpoch;
+  }
+
+  void setPlayer1Name(String name) {
+    _player1Name = name;
   }
 } 

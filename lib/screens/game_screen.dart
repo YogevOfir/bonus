@@ -4,12 +4,66 @@ import 'package:bonus/models/letter.dart';
 import 'package:bonus/services/game_logic.dart';
 import 'package:bonus/widgets/game_board.dart';
 import 'package:bonus/widgets/letter_tile.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   final bool isAiGame;
-  const GameScreen({super.key, this.isAiGame = false});
+  final String roomID;
+  final int localPlayerId;
+  const GameScreen({super.key, this.isAiGame = false, required this.roomID, this.localPlayerId = 1});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  late GameLogic _gameLogic;
+  Timer? _uiTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _gameLogic = Provider.of<GameLogic>(context, listen: false);
+
+    if (widget.roomID.isNotEmpty) {
+      _gameLogic.setRoomID(widget.roomID);
+      _gameLogic.setLocalPlayerId(widget.localPlayerId);
+
+      final roomRef = _database.child('rooms/${widget.roomID}');
+
+      // Use `onValue.first` to wait for the first data event, which includes the initial state.
+      // This is more reliable than .get() for ensuring initial data is loaded.
+      roomRef.onValue.first.then((event) {
+        if (event.snapshot.value != null) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>;
+          _gameLogic.syncFromFirebase(data);
+        }
+      });
+
+      // After getting the first value, set up a permanent listener for any future changes.
+      roomRef.onValue.listen((event) {
+        if (event.snapshot.value != null) {
+          final data = event.snapshot.value as Map<dynamic, dynamic>;
+          _gameLogic.syncFromFirebase(data);
+        }
+      });
+    }
+
+    // Add a timer to refresh the UI every second for the timer display
+    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _uiTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +73,22 @@ class GameScreen extends StatelessWidget {
       ),
       body: Consumer<GameLogic>(
         builder: (context, gameLogic, child) {
+          bool isMyTurn = gameLogic.currentPlayer == widget.localPlayerId;
+          print("Player ${widget.localPlayerId} UI BUILD --- Current Turn: ${gameLogic.currentPlayer}, Is My Turn? $isMyTurn");
+
+          // While waiting for the first sync, show a loading indicator.
+          if (!gameLogic.isSynced) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Synchronizing game state...'),
+                ],
+              ),
+            );
+          }
           // Attach error dialog callback
           gameLogic.onError = (msg) {
             showDialog(
@@ -154,7 +224,7 @@ class GameScreen extends StatelessWidget {
       children: [
         Column(
           children: [
-            const Text('Player 1', style: TextStyle(fontSize: 18)),
+            Text(gameLogic.player1Name, style: const TextStyle(fontSize: 18)),
             Text(gameLogic.player1Score.toString(),
                 style: const TextStyle(
                     fontSize: 24, fontWeight: FontWeight.bold)),
@@ -163,14 +233,15 @@ class GameScreen extends StatelessWidget {
         Column(
           children: [
             const Text('Turn', style: TextStyle(fontSize: 18)),
-            Text('Player ${gameLogic.currentPlayer}',
+            Text(gameLogic.currentPlayer == 1 ? gameLogic.player1Name : gameLogic.player2Name,
                 style: const TextStyle(
                     fontSize: 24, fontWeight: FontWeight.bold)),
           ],
         ),
         Column(
           children: [
-            Text(isAiGame ? 'Computer' : 'Player 2', style: const TextStyle(fontSize: 18)),
+            Text(widget.isAiGame ? 'Computer' : gameLogic.player2Name,
+                style: const TextStyle(fontSize: 18)),
             Text(gameLogic.player2Score.toString(),
                 style: const TextStyle(
                     fontSize: 24, fontWeight: FontWeight.bold)),
@@ -181,73 +252,65 @@ class GameScreen extends StatelessWidget {
   }
 
   Widget _buildPlayerHandArea(GameLogic gameLogic, BuildContext context) {
-    bool isPlayer1Turn = gameLogic.currentPlayer == 1;
+    bool isPlayer1sTurn = gameLogic.currentPlayer == 1;
+    bool isMyTurn = gameLogic.currentPlayer == widget.localPlayerId;
     final screenWidth = MediaQuery.of(context).size.width;
+
+    // If it's my turn, highlight my hand, otherwise both faded
+    double player1Opacity, player2Opacity;
+    if (isMyTurn) {
+      player1Opacity = isPlayer1sTurn ? 1.0 : 0.6;
+      player2Opacity = isPlayer1sTurn ? 0.6 : 1.0;
+    } else {
+      player1Opacity = 0.6;
+      player2Opacity = 0.6;
+    }
 
     return Column(
       children: [
-        Text(isAiGame ? 'Computer\'s Hand' : 'Player 2\'s Hand'),
-        DragTarget<DraggableLetter>(
-          builder: (context, candidateData, rejectedData) {
-            return Opacity(
-              opacity: isPlayer1Turn ? 0.5 : 1.0,
-              child: _buildPlayerHand(
-                  gameLogic.player2Hand, isPlayer1Turn, screenWidth),
-            );
-          },
-          onWillAccept: (data) =>
-              data?.origin == LetterOrigin.board && !isPlayer1Turn,
-          onAccept: (data) {
-            gameLogic.returnLetterToHand(data);
-          },
+        Text(widget.isAiGame ? 'Computer\'s Hand' : "${gameLogic.player2Name}'s Hand"),
+        Opacity(
+          opacity: player2Opacity,
+          child: _buildPlayerHand(gameLogic.player2Hand, 2, isMyTurn, screenWidth),
         ),
         const SizedBox(height: 20),
-        const Text('Player 1\'s Hand'),
-        DragTarget<DraggableLetter>(
-          builder: (context, candidateData, rejectedData) {
-            return Opacity(
-              opacity: isPlayer1Turn ? 1.0 : 0.5,
-              child: _buildPlayerHand(
-                  gameLogic.player1Hand, !isPlayer1Turn, screenWidth),
-            );
-          },
-          onWillAccept: (data) =>
-              data?.origin == LetterOrigin.board && isPlayer1Turn,
-          onAccept: (data) {
-            gameLogic.returnLetterToHand(data);
-          },
+        Text("${gameLogic.player1Name}'s Hand"),
+        Opacity(
+          opacity: player1Opacity,
+          child: _buildPlayerHand(gameLogic.player1Hand, 1, isMyTurn, screenWidth),
         ),
       ],
     );
   }
 
   Widget _buildPlayerHand(
-      List<Letter> hand, bool isOpponent, double screenWidth) {
+      List<Letter> hand, int handOwnerId, bool isMyTurn, double screenWidth) {
+    bool canDrag = isMyTurn && (handOwnerId == widget.localPlayerId);
+
     return Center(
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: hand.map((letter) {
+            final letterTile = LetterTile(letter: letter);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Draggable<DraggableLetter>(
-                data: DraggableLetter(
-                    letter: letter, origin: LetterOrigin.hand),
-                feedback: Material(
-                  elevation: 4.0,
-                  child: LetterTile(letter: letter),
-                ),
-                childWhenDragging: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-                child: LetterTile(letter: letter),
-              ),
+              child: canDrag
+                  ? Draggable<DraggableLetter>(
+                      data: DraggableLetter(letter: letter, origin: LetterOrigin.hand, fromIndex: -1), // fromIndex -1 for hand
+                      feedback: Material(elevation: 4.0, child: letterTile),
+                      childWhenDragging: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                      child: letterTile,
+                    )
+                  : letterTile, // If not draggable, just show the tile
             );
           }).toList(),
         ),
@@ -258,9 +321,9 @@ class GameScreen extends StatelessWidget {
   void _showGameOverDialog(BuildContext context, GameLogic gameLogic) {
     String winner;
     if (gameLogic.player1Score > gameLogic.player2Score) {
-      winner = 'Player 1';
+      winner = gameLogic.player1Name;
     } else if (gameLogic.player2Score > gameLogic.player1Score) {
-      winner = isAiGame ? 'Computer' : 'Player 2';
+      winner = widget.isAiGame ? 'Computer' : gameLogic.player2Name;
     } else {
       winner = 'It\'s a tie!';
     }
