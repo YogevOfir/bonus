@@ -44,6 +44,9 @@ class GameLogic extends ChangeNotifier {
   bool _player2ExtraMove = false;
   bool _isSynced = false;
 
+  bool _firstMoveDone = false;
+  int _firstPlayerId = 1;
+
   List<Letter> get player1Hand => _player1Hand;
   List<Letter> get player2Hand => _player2Hand;
   List<BoardTile?> get board => _board;
@@ -101,7 +104,8 @@ class GameLogic extends ChangeNotifier {
       'players': {
         'player1': _player1Name,
         if (_player2Name.isNotEmpty) 'player2': _player2Name,
-      }
+      },
+      'firstMoveDone': _firstMoveDone,
     });
   }
 
@@ -176,6 +180,11 @@ class GameLogic extends ChangeNotifier {
         _serverTimeOffset = offset;
         print('Updated server time offset: \\$_serverTimeOffset ms');
       }
+    }
+
+    if (data['firstMoveDone'] != null) {
+      _firstMoveDone = data['firstMoveDone'] == true;
+      print('Synced firstMoveDone: $_firstMoveDone');
     }
 
     if (!_isSynced) {
@@ -355,6 +364,8 @@ class GameLogic extends ChangeNotifier {
     _player1Score = 0;
     _player2Score = 0;
     _currentPlayer = 1;
+    _firstMoveDone = false;
+    _firstPlayerId = Random().nextBool() ? 1 : 2;
     _initializeLetterPool();
     _initializeBoard();
     _letterPool.shuffle();
@@ -379,6 +390,7 @@ class GameLogic extends ChangeNotifier {
     }
   }
 
+  @override
   Future<void> endTurn() async {
     // Prevent ending turn if it's not the current player's turn
     if (_localPlayerId != _currentPlayer) {
@@ -395,18 +407,17 @@ class GameLogic extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (!_validatePlacement()) {
-      _showErrorDialog(
-          'All placed tiles must be in a single row or column and contiguous.');
-      return;
-    }
     if (!await _validateWords()) {
       _showErrorDialog('All words must be valid.');
       return;
     }
-    _addScoreForTurn();
+    await _addScoreForTurn();
     _timer?.cancel();
     _makePlacedLettersPermanent();
+    // Mark first move as done after the first player's first valid move
+    if (!_firstMoveDone && _currentPlayer == _firstPlayerId && _placedThisTurn.isNotEmpty) {
+      _firstMoveDone = true;
+    }
     _placedThisTurn.clear();
     List<Letter> currentHand =
         (_currentPlayer == 1) ? _player1Hand : _player2Hand;
@@ -439,42 +450,40 @@ class GameLogic extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _addScoreForTurn() {
-    final words = wordsWithScoresForTurn();
+  Future<void> _addScoreForTurn() async {
+    final wordList = await wordsWithScoresForTurn();
     int total = 0;
     bool extraMove = false;
-    words.then((wordList) {
-      for (final wordData in wordList) {
-        total += wordData['score'] as int;
-        // Handle bonuses that give extra turns
-        final bonus = wordData['bonus'] as BonusInfo?;
-        if (bonus?.type == BonusType.extraMove) {
-          extraMove = true;
-        }
+    for (final wordData in wordList) {
+      total += wordData['score'] as int;
+      // Handle bonuses that give extra turns
+      final bonus = wordData['bonus'] as BonusInfo?;
+      if (bonus?.type == BonusType.extraMove) {
+        extraMove = true;
       }
-      // Apply future bonuses if active
-      if (_currentPlayer == 1) {
-        if (_player1QuadTurns > 0) {
-          total *= 4;
-          _player1QuadTurns--;
-        } else if (_player1DoubleTurns > 0) {
-          total *= 2;
-          _player1DoubleTurns--;
-        }
-        _player1Score += total;
-        _player1ExtraMove = extraMove;
-      } else {
-        if (_player2QuadTurns > 0) {
-          total *= 4;
-          _player2QuadTurns--;
-        } else if (_player2DoubleTurns > 0) {
-          total *= 2;
-          _player2DoubleTurns--;
-        }
-        _player2Score += total;
-        _player2ExtraMove = extraMove;
+    }
+    // Apply future bonuses if active
+    if (_currentPlayer == 1) {
+      if (_player1QuadTurns > 0) {
+        total *= 4;
+        _player1QuadTurns--;
+      } else if (_player1DoubleTurns > 0) {
+        total *= 2;
+        _player1DoubleTurns--;
       }
-    });
+      _player1Score += total;
+      _player1ExtraMove = extraMove;
+    } else {
+      if (_player2QuadTurns > 0) {
+        total *= 4;
+        _player2QuadTurns--;
+      } else if (_player2DoubleTurns > 0) {
+        total *= 2;
+        _player2DoubleTurns--;
+      }
+      _player2Score += total;
+      _player2ExtraMove = extraMove;
+    }
   }
 
   int _letterScore(String ch) {
@@ -559,6 +568,11 @@ class GameLogic extends ChangeNotifier {
     final col = index % 12;
 
     final isOuterRing = row == 0 || row == 11 || col == 0 || col == 11;
+
+    // Block placing on bonus tiles for the first player, only on their first turn
+    if (!_firstMoveDone && _currentPlayer == _firstPlayerId && _bonusIndices.contains(index)) {
+      return false;
+    }
 
     if (isOuterRing) {
       return _bonusIndices.contains(index);

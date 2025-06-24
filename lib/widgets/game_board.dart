@@ -60,7 +60,21 @@ class GameBoard extends StatelessWidget {
             );
           }
         } else if (!isPlayable) {
-          tileContent = Container();
+          // Always show bonuses, even if not playable
+          if (bonusInfo != null) {
+            tileContent = Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                color: bonusInfo.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Center(
+                child: Icon(bonusInfo.icon, color: bonusInfo.color.withOpacity(0.4)),
+              ),
+            );
+          } else {
+            tileContent = Container();
+          }
         } else {
           tileContent = Container(
             decoration: BoxDecoration(
