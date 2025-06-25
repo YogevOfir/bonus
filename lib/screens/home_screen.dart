@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:bonus/controllers/game_controller.dart';
+import 'package:bonus/repositories/firebase_game_repository.dart';
+import 'package:bonus/repositories/local_game_repository.dart';
 import 'package:bonus/screens/game_screen.dart';
-import 'package:bonus/services/game_logic.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,27 +22,88 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bonus'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ElevatedButton(
-              onPressed: () {
-                _showStartGameDialog(context);
-              },
-              child: const Text('Start Game'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                _showInstructionsDialog(context);
-              },
-              child: const Text('Instructions'),
-            ),
-          ],
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF7F53AC), Color(0xFF647DEE), Color(0xFF63E2FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
+        child: Center(
+          child: Card(
+            elevation: 16,
+            color: Colors.white.withOpacity(0.92),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.casino, color: Colors.deepPurple, size: 38),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Bonus',
+                        style: TextStyle(
+                          fontSize: 38,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple[700],
+                          letterSpacing: 2,
+                          shadows: [
+                            Shadow(color: Colors.deepPurple.withOpacity(0.2), blurRadius: 8, offset: Offset(0, 3)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.play_circle_fill,
+                    label: 'Start Game',
+                    color: Colors.deepPurple,
+                    onPressed: () {
+                      _showStartGameDialog(context);
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  _buildMenuButton(
+                    context,
+                    icon: Icons.info_outline,
+                    label: 'Instructions',
+                    color: Colors.cyan[700]!,
+                    onPressed: () {
+                      _showInstructionsDialog(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext context, {required IconData icon, required String label, required Color color, required VoidCallback onPressed}) {
+    return SizedBox(
+      width: 220,
+      height: 54,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 8,
+        ),
+        icon: Icon(icon, size: 28),
+        label: Text(label),
+        onPressed: onPressed,
       ),
     );
   }
@@ -48,40 +111,80 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showStartGameDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Start Game'),
-          content: const Text('Select game mode:'),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.play_circle_fill, color: Colors.deepPurple, size: 28),
+              SizedBox(width: 8),
+              Text('Start Game', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+            ],
+          ),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Online',
+                  color: Colors.deepPurple,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _showOnlineGameDialog(context);
+                  },
+                ),
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Local',
+                  color: Colors.green[700]!,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                      return ChangeNotifierProvider(
+                        create: (context) => GameController(repository: LocalGameRepository()),
+                        child: const GameScreen(roomID: 'local_room'),
+                      );
+                    }));
+                  },
+                ),
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Play vs Computer',
+                  color: Colors.pink[700]!,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                       return ChangeNotifierProvider(
+                        create: (context) => GameController(repository: LocalGameRepository()),
+                        child: const GameScreen(isAiGame: true, roomID: 'local_room'),
+                      );
+                    }));
+                  },
+                ),
+              ],
+            ),
+          ),
           actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                _showOnlineGameDialog(context);
-              },
-              child: const Text('Online'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                  return ChangeNotifierProvider(
-                    create: (context) => GameLogic(),
-                    child: const GameScreen(roomID: ''),
-                  );
-                }));
-              },
-              child: const Text('Local'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                   return ChangeNotifierProvider(
-                    create: (context) => GameLogic(),
-                    child: const GameScreen(isAiGame: true, roomID: ''),
-                  );
-                }));
-              },
-              child: const Text('Play vs Computer'),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogButton(
+                    dialogContext,
+                    label: 'Close',
+                    color: Colors.cyan,
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -89,27 +192,82 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildDialogButton(BuildContext context, {required String label, required Color color, required VoidCallback onPressed}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 6,
+        ),
+        onPressed: onPressed,
+        child: Text(label),
+      ),
+    );
+  }
+
   void _showOnlineGameDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Online Game'),
-          content: const Text('Create or join a room:'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _createRoom(context);
-              },
-              child: const Text('Create Room'),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.public, color: Colors.deepPurple, size: 28),
+              SizedBox(width: 8),
+              Text('Online Game', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+            ],
+          ),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Create Room',
+                  color: Colors.deepPurple,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _createRoom(context);
+                  },
+                ),
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Join Room',
+                  color: Colors.green[700]!,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _joinRoom(context);
+                  },
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _joinRoom(context);
-              },
-              child: const Text('Join Room'),
+          ),
+          actions: <Widget>[
+            Container(
+              alignment: Alignment.centerLeft,
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogButton(
+                    dialogContext,
+                    label: 'Close',
+                    color: Colors.cyan,
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -121,64 +279,110 @@ class _HomeScreenState extends State<HomeScreen> {
     final TextEditingController nameController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Enter Your Name'),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Your Name'),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.person, color: Colors.deepPurple, size: 28),
+              SizedBox(width: 8),
+              Text('Enter Your Name', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                final String playerName = nameController.text.trim().isEmpty ? 'Player 1' : nameController.text.trim();
-                Navigator.of(context).pop();
-                final String roomID = (100000 + Random().nextInt(900000)).toString();
-                final gameLogic = GameLogic();
-                gameLogic.setRoomID(roomID);
-                gameLogic.setPlayer1Name(playerName);
-                // Show the room PIN and wait for player 2
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) {
-                    StreamSubscription<DatabaseEvent>? player2Listener;
-                    // Listen for player2 to join
-                    player2Listener = _database.child('rooms/$roomID/players/player2').onValue.listen((event) {
-                      final p2name = event.snapshot.value as String?;
-                      if (p2name != null && p2name.isNotEmpty) {
-                        player2Listener?.cancel(); // Stop listening to avoid multiple navigations
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                          // Use .value to provide the *existing* gameLogic instance.
-                          return ChangeNotifierProvider.value(
-                            value: gameLogic,
-                            child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 1),
-                          );
-                        }));
-                      }
-                    });
-                    return AlertDialog(
-                      title: const Text('Room Created!'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SelectableText(
-                            'Your room PIN is: $roomID\n\nShare it with a friend to play.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Your Name'),
+                ),
+                _buildDialogButton(
+                  dialogContext,
+                  label: 'Create',
+                  color: Colors.deepPurple,
+                  onPressed: () async {
+                    final String playerName = nameController.text.trim().isEmpty ? 'Player 1' : nameController.text.trim();
+                    Navigator.of(dialogContext).pop();
+                    final repository = FirebaseGameRepository();
+                    final roomID = await repository.createRoom(playerName);
+                    final gameController = GameController(repository: repository);
+                    gameController.setPlayer1Name(playerName);
+                    await gameController.startNewOnlineGame(roomID);
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (waitingDialogContext) {
+                        StreamSubscription<DatabaseEvent>? player2Listener;
+                        bool isNavigating = false;
+                        player2Listener = _database.child('rooms/$roomID/players/player2').onValue.listen((event) {
+                          if (isNavigating) return;
+                          final p2name = event.snapshot.value as String?;
+                          if (p2name != null && p2name.isNotEmpty) {
+                            isNavigating = true;
+                            player2Listener?.cancel();
+                            Navigator.of(waitingDialogContext).pop();
+                            Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                              return ChangeNotifierProvider.value(
+                                value: gameController,
+                                child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 1),
+                              );
+                            }));
+                          }
+                        });
+                        return AlertDialog(
+                          backgroundColor: Colors.white.withOpacity(0.95),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: Row(
+                            children: const [
+                              Icon(Icons.hourglass_top, color: Colors.deepPurple, size: 28),
+                              SizedBox(width: 8),
+                              Text('Room Created!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                            ],
                           ),
-                          const SizedBox(height: 24),
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 12),
-                          const Text('Waiting for player to join...'),
-                        ],
-                      ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SelectableText(
+                                'Your room PIN is: $roomID\n\nShare it with a friend to play.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                              ),
+                              const SizedBox(height: 24),
+                              const CircularProgressIndicator(),
+                              const SizedBox(height: 12),
+                              const Text('Waiting for player to join...', style: TextStyle(color: Colors.deepPurple)),
+                            ],
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-              child: const Text('Create'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Container(
+              alignment: Alignment.centerLeft,
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogButton(
+                    dialogContext,
+                    label: 'Close',
+                    color: Colors.cyan,
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -191,55 +395,76 @@ class _HomeScreenState extends State<HomeScreen> {
     final TextEditingController nameController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Join Room'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: pinController,
-                decoration: const InputDecoration(labelText: 'Enter PIN'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Your Name'),
-              ),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.login, color: Colors.deepPurple, size: 28),
+              SizedBox(width: 8),
+              Text('Join Room', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: pinController,
+                  decoration: const InputDecoration(labelText: 'Enter PIN'),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Your Name'),
+                ),
+              ],
+            ),
+          ),
           actions: [
-            TextButton(
-              onPressed: () async {
-                final String roomID = pinController.text.trim();
-                final String playerName = nameController.text.trim().isEmpty ? 'Player 2' : nameController.text.trim();
-                if (roomID.isEmpty || roomID.length != 6) {
-                  print('Invalid PIN');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a valid 6-digit PIN.')),
-                  );
-                  return;
-                }
-                final snapshot = await _database.child('rooms/$roomID').get();
-                if (snapshot.exists) {
-                  // Set player2 name in Firebase
-                  await _database.child('rooms/$roomID/players').update({'player2': playerName});
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-                    // The joiner starts with a clean slate and will sync from Firebase.
-                    return ChangeNotifierProvider(
-                      create: (context) => GameLogic.online(),
-                      child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 2),
-                    );
-                  }));
-                } else {
-                  print('Room not found!');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Room not found!')),
-                  );
-                }
-              },
-              child: const Text('Join'),
+            Container(
+              alignment: Alignment.centerLeft,
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogButton(
+                    dialogContext,
+                    label: 'Join',
+                    color: Colors.deepPurple,
+                    onPressed: () async {
+                      final String roomID = pinController.text.trim();
+                      final String playerName = nameController.text.trim().isEmpty ? 'Player 2' : nameController.text.trim();
+                      if (roomID.isEmpty || roomID.length != 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a valid 6-digit PIN.')),
+                        );
+                        return;
+                      }
+                      final snapshot = await _database.child('rooms/$roomID').get();
+                      if (snapshot.exists) {
+                        final repository = FirebaseGameRepository();
+                        await repository.joinRoom(roomID, playerName);
+                        Navigator.of(dialogContext).pop();
+                        Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                          return ChangeNotifierProvider(
+                            create: (context) => GameController(repository: repository),
+                            child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 2),
+                          );
+                        }));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Room not found!')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -252,23 +477,28 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Instructions'),
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: const [
+              Icon(Icons.info_outline, color: Colors.cyan, size: 28),
+              SizedBox(width: 8),
+              Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+            ],
+          ),
           content: const SingleChildScrollView(
             child: Text(
-              'The goal of the game is to score points by creating words on the board.\n\n'
-              'Each player starts with 8 random letters.\n\n'
-              'On your turn, place letters on the board to form a word. The first word must cover the center tile.\n\n'
-              'Subsequent words must connect to existing words.\n\n'
-              'The game ends when a player uses all their letters and the letter pool is empty.\n\n'
-              'The player with the highest score wins.',
+              'Here are the instructions for the game...',
             ),
           ),
           actions: <Widget>[
-            TextButton(
+            _buildDialogButton(
+              context,
+              label: 'Close',
+              color: Colors.cyan,
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Close'),
             ),
           ],
         );

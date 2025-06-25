@@ -1,6 +1,6 @@
+import 'package:bonus/controllers/game_controller.dart';
 import 'package:bonus/models/draggable_letter.dart';
 import 'package:bonus/models/letter.dart';
-import 'package:bonus/services/game_logic.dart';
 import 'package:bonus/widgets/letter_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,107 +10,193 @@ class GameBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gameLogic = Provider.of<GameLogic>(context);
-    final board = gameLogic.board;
+    final gameController = Provider.of<GameController>(context);
+    final board = gameController.board;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 12,
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFe0cda9), // light wood
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.brown.withOpacity(0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      itemCount: 144,
-      itemBuilder: (context, index) {
-        final tile = board[index];
-        final letter = tile?.letter;
-        final isPermanent = tile?.isPermanent ?? false;
-        final bonusInfo = tile?.bonus;
-        final isPlayable = gameLogic.isPlayableTile(index);
+      padding: const EdgeInsets.all(8),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 12,
+        ),
+        itemCount: 144,
+        itemBuilder: (context, index) {
+          final tile = board[index];
+          final letter = tile?.letter;
+          final isPermanent = tile?.isPermanent ?? false;
+          final bonusInfo = tile?.bonus;
+          final isPlayable = gameController.isPlayableTile(index);
 
-        Widget tileContent;
-        if (letter != null) {
-          final letterTile = LetterTile(letter: letter);
-          if (isPermanent) {
-            tileContent = Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                border: Border.all(color: Colors.black),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: letterTile,
+          Widget tileContent;
+          if (letter != null) {
+            final letterTile = LetterTile(
+              letter: letter,
+              isPermanent: isPermanent,
             );
-          } else {
-            tileContent = Draggable<DraggableLetter>(
-              data: DraggableLetter(
-                letter: letter,
-                origin: LetterOrigin.board,
-                fromIndex: index,
-              ),
-              feedback: Material(
-                elevation: 4.0,
-                child: letterTile,
-              ),
-              childWhenDragging: Container(
+            if (isPermanent) {
+              tileContent = Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  color: Colors.grey.withOpacity(0.5),
+                  color: Colors.grey[400]!.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              child: letterTile,
-            );
-          }
-        } else if (!isPlayable) {
-          // Always show bonuses, even if not playable
-          if (bonusInfo != null) {
+                child: letterTile,
+              );
+            } else {
+              tileContent = Draggable<DraggableLetter>(
+                data: DraggableLetter(
+                  letter: letter,
+                  origin: LetterOrigin.board,
+                  fromIndex: index,
+                ),
+                feedback: Material(
+                  elevation: 8.0,
+                  borderRadius: BorderRadius.circular(12),
+                  child: letterTile,
+                ),
+                childWhenDragging: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    color: Colors.grey.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: letterTile,
+                ),
+              );
+            }
+          } else if (!isPlayable) {
+            // Always show bonuses, even if not playable
+            if (bonusInfo != null) {
+              tileContent = Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: bonusInfo.color.withOpacity(0.5), width: 2),
+                  color: bonusInfo.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(bonusInfo.icon, color: bonusInfo.color.withOpacity(0.4), size: 28),
+                ),
+              );
+            } else {
+              tileContent = Container();
+            }
+          } else {
             tileContent = Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                color: bonusInfo.color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: bonusInfo != null ? bonusInfo.color : Colors.brown[300]!, width: 2),
+                gradient: bonusInfo != null
+                    ? LinearGradient(
+                        colors: [bonusInfo.color.withOpacity(0.18), Colors.white],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : LinearGradient(
+                        colors: [Colors.brown[100]!, Colors.brown[200]!],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.brown.withOpacity(0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Center(
-                child: Icon(bonusInfo.icon, color: bonusInfo.color.withOpacity(0.4)),
-              ),
+              child: bonusInfo != null
+                  ? Center(
+                      child: Icon(bonusInfo.icon, color: bonusInfo.color, size: 28),
+                    )
+                  : null,
             );
-          } else {
-            tileContent = Container();
           }
-        } else {
-          tileContent = Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              color: bonusInfo != null
-                  ? bonusInfo.color.withOpacity(0.2)
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: bonusInfo != null
-                ? Center(
-                    child: Icon(bonusInfo.icon, color: bonusInfo.color),
-                  )
-                : null,
-          );
-        }
 
-        if (!isPlayable) {
-          return tileContent;
-        }
-
-        return DragTarget<DraggableLetter>(
-          builder: (context, candidateData, rejectedData) {
+          if (!isPlayable) {
             return tileContent;
-          },
-          onWillAccept: (data) {
-            if (board[index]?.isPermanent == true) return false;
-            // A tile can be dropped if the spot is empty
-            // or if it's being returned to its original spot.
-            return board[index]?.letter == null || data?.fromIndex == index;
-          },
-          onAccept: (draggableLetter) {
-            gameLogic.moveLetter(draggableLetter, index);
-          },
+          }
+
+          return DragTarget<DraggableLetter>(
+            builder: (context, candidateData, rejectedData) {
+              return tileContent;
+            },
+            onWillAccept: (data) {
+              if (board[index]?.isPermanent == true) return false;
+              return board[index]?.letter == null || data?.fromIndex == index;
+            },
+            onAccept: (draggableLetter) {
+              // First move the blank tile to the board
+              gameController.moveLetter(draggableLetter, index);
+
+              // If it's a wildcard, show the dialog
+              if (draggableLetter.letter.letter == ' ') {
+                _showWildcardDialog(context, index);
+              }
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showWildcardDialog(BuildContext context, int boardIndex) async {
+    final gameController = Provider.of<GameController>(context, listen: false);
+    const alphabet = 'אבגדהוזחטיכלמנסעפצקרשת';
+
+    final chosenLetter = await showDialog<String>(
+      context: context,
+      barrierDismissible: false, // User must choose a letter
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.blueGrey[800]?.withOpacity(0.9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.cyanAccent.withOpacity(0.5), width: 2),
+          ),
+          title: const Text('בחר אות', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.count(
+              crossAxisCount: 5,
+              shrinkWrap: true,
+              children: alphabet.runes.map((rune) {
+                var character = String.fromCharCode(rune);
+                return TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(character, style: const TextStyle(fontSize: 24, color: Colors.cyanAccent)),
+                  onPressed: () {
+                    Navigator.of(context).pop(character);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
         );
       },
     );
+
+    if (chosenLetter != null) {
+      gameController.setWildcardLetter(boardIndex, chosenLetter);
+    }
   }
 } 

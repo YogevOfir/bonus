@@ -4,8 +4,8 @@ enum BonusType {
   score,
   futureDouble,
   futureQuad,
-  extraMove,
-  wordGame;
+  extraMove;
+  // wordGame;
 
   // Serialization
   String toJson() => name;
