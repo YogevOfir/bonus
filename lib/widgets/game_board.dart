@@ -84,12 +84,14 @@ class GameBoard extends StatelessWidget {
             if (bonusInfo != null) {
               tileContent = Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: bonusInfo.color.withOpacity(0.5), width: 2),
+                  border: Border.all(
+                      color: bonusInfo.color.withOpacity(0.5), width: 2),
                   color: bonusInfo.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
-                  child: Icon(bonusInfo.icon, color: bonusInfo.color.withOpacity(0.4), size: 28),
+                  child: Icon(bonusInfo.icon,
+                      color: bonusInfo.color.withOpacity(0.4), size: 28),
                 ),
               );
             } else {
@@ -98,10 +100,17 @@ class GameBoard extends StatelessWidget {
           } else {
             tileContent = Container(
               decoration: BoxDecoration(
-                border: Border.all(color: bonusInfo != null ? bonusInfo.color : Colors.brown[300]!, width: 2),
+                border: Border.all(
+                    color: bonusInfo != null
+                        ? bonusInfo.color
+                        : Colors.brown[300]!,
+                    width: 2),
                 gradient: bonusInfo != null
                     ? LinearGradient(
-                        colors: [bonusInfo.color.withOpacity(0.18), Colors.white],
+                        colors: [
+                          bonusInfo.color.withOpacity(0.18),
+                          Colors.white
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
@@ -121,7 +130,8 @@ class GameBoard extends StatelessWidget {
               ),
               child: bonusInfo != null
                   ? Center(
-                      child: Icon(bonusInfo.icon, color: bonusInfo.color, size: 28),
+                      child: Icon(bonusInfo.icon,
+                          color: bonusInfo.color, size: 28),
                     )
                   : null,
             );
@@ -156,41 +166,97 @@ class GameBoard extends StatelessWidget {
 
   Future<void> _showWildcardDialog(BuildContext context, int boardIndex) async {
     final gameController = Provider.of<GameController>(context, listen: false);
-    const alphabet = 'אבגדהוזחטיכלמנסעפצקרשת';
+    const alphabet = 'תשרקצסנמלכיטחזוהדגבא';
 
     final chosenLetter = await showDialog<String>(
       context: context,
       barrierDismissible: false, // User must choose a letter
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.blueGrey[800]?.withOpacity(0.9),
+          backgroundColor: Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.cyanAccent.withOpacity(0.5), width: 2),
+            side:
+                BorderSide(color: Colors.deepPurple.withOpacity(0.3), width: 2),
           ),
-          title: const Text('בחר אות', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: SizedBox(
+          title: Row(
+            children: [
+              Icon(Icons.auto_awesome, color: Colors.deepPurple, size: 28),
+              SizedBox(width: 8),
+              Text(
+                'Choose Letter for Joker',
+                style: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+            ],
+          ),
+          content: Container(
             width: double.maxFinite,
+            constraints: BoxConstraints(maxHeight: 300),
             child: GridView.count(
               crossAxisCount: 5,
               shrinkWrap: true,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
               children: alphabet.runes.map((rune) {
                 var character = String.fromCharCode(rune);
-                return TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                return Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.of(context).pop(character);
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.deepPurple[100]!,
+                            Colors.deepPurple[200]!
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          character,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple[800],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(character, style: const TextStyle(fontSize: 24, color: Colors.cyanAccent)),
-                  onPressed: () {
-                    Navigator.of(context).pop(character);
-                  },
                 );
               }).toList(),
             ),
           ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.deepPurple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+          ],
         );
       },
     );
@@ -199,4 +265,4 @@ class GameBoard extends StatelessWidget {
       gameController.setWildcardLetter(boardIndex, chosenLetter);
     }
   }
-} 
+}
