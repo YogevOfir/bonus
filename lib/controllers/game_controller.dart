@@ -73,12 +73,13 @@ class GameController extends ChangeNotifier {
   bool get wordsLoaded => _validationService.wordsLoaded;
   List<Letter> get letterPool => _letterPool;
   int get remainingTime {
-    if (_turnStartTimestamp == null) return 600;
+    if (_turnStartTimestamp == null) return 120;
     // In local games, offset is 0. In online games, it's calculated.
     final now = DateTime.now().millisecondsSinceEpoch - _serverTimeOffset;
     final elapsed = ((now - _turnStartTimestamp!) / 1000).floor();
-    return (600 - elapsed).clamp(0, 600);
+    return (120 - elapsed).clamp(0, 120);
   }
+
   List<int> get placedThisTurn => _placedThisTurn.toList();
   ScoreService get scoreService => _scoreService;
   WordValidationService get validationService => _validationService;
@@ -92,7 +93,7 @@ class GameController extends ChangeNotifier {
     _scoreService = ScoreService(_validationService);
     _rulesService = GameRulesService();
     _repository = repository ?? LocalGameRepository();
-    
+
     _initialize();
   }
 
@@ -105,9 +106,9 @@ class GameController extends ChangeNotifier {
     }
     notifyListeners();
   }
-  
+
   // SECTION: Game Setup
-  
+
   void startNewLocalGame() {
     _player1Score = 0;
     _player2Score = 0;
@@ -124,7 +125,7 @@ class GameController extends ChangeNotifier {
     _isSynced = true;
     notifyListeners();
   }
-  
+
   Future<void> startNewOnlineGame(String roomID) async {
     _roomID = roomID;
     _player1Score = 0;
@@ -163,7 +164,7 @@ class GameController extends ChangeNotifier {
     }
     notifyListeners();
   }
-  
+
   void setRoomID(String roomID) {
     _roomID = roomID;
     if (isOnline) {
@@ -179,14 +180,17 @@ class GameController extends ChangeNotifier {
   // SECTION: Core Game Logic (Turn Management)
 
   Future<TurnScoreResult?> validateAndGetTurnResults() async {
-    if (!_rulesService.validatePlacementTouchesExisting(board: _board, placedThisTurn: _placedThisTurn)) {
-        onError?.call('At least one letter must touch an existing word on the board.');
-        return null;
+    if (!_rulesService.validatePlacementTouchesExisting(
+        board: _board, placedThisTurn: _placedThisTurn)) {
+      onError?.call(
+          'At least one letter must touch an existing word on the board.');
+      return null;
     }
 
-    if (!_rulesService.validatePlacement(board: _board, placedThisTurn: _placedThisTurn)) {
-        onError?.call('All placed letters must be connected and part of a word.');
-        return null;
+    if (!_rulesService.validatePlacement(
+        board: _board, placedThisTurn: _placedThisTurn)) {
+      onError?.call('All placed letters must be connected and part of a word.');
+      return null;
     }
 
     bool hasValidWords = await _hasValidWords();
@@ -198,14 +202,15 @@ class GameController extends ChangeNotifier {
       board: _board,
       placedThisTurn: _placedThisTurn,
       letterPool: _letterPool,
-      activeDoubleTurns: _currentPlayer >= 1 ? _player1DoubleTurns : _player2DoubleTurns,
-      activeQuadTurns: _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
+      activeDoubleTurns:
+          _currentPlayer >= 1 ? _player1DoubleTurns : _player2DoubleTurns,
+      activeQuadTurns:
+          _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
     );
   }
 
-  Future<void> endTurn({bool skipValidation = false, bool fromTimeout = false}) async {
-    print(_player1QuadTurns);
-    print(_player2QuadTurns);
+  Future<void> endTurn(
+      {bool skipValidation = false, bool fromTimeout = false}) async {
     if (isOnline && _localPlayerId != _currentPlayer) {
       onError?.call("It's not your turn!");
       return;
@@ -221,36 +226,43 @@ class GameController extends ChangeNotifier {
     }
 
     if (!skipValidation) {
-      if (!_rulesService.validatePlacementTouchesExisting(board: _board, placedThisTurn: _placedThisTurn)) {
-          onError?.call('At least one letter must touch an existing word on the board.');
-          return;
+      if (!_rulesService.validatePlacementTouchesExisting(
+          board: _board, placedThisTurn: _placedThisTurn)) {
+        onError?.call(
+            'At least one letter must touch an existing word on the board.');
+        return;
       }
 
-      if (!_rulesService.validatePlacement(board: _board, placedThisTurn: _placedThisTurn)) {
-          onError?.call('All placed letters must be connected and part of a word.');
-          return;
+      if (!_rulesService.validatePlacement(
+          board: _board, placedThisTurn: _placedThisTurn)) {
+        onError
+            ?.call('All placed letters must be connected and part of a word.');
+        return;
       }
-      
+
       bool hasValidWords = await _hasValidWords();
       if (!hasValidWords) {
         return;
       }
     }
-    
+
     // Calculate score and get bonuses gained this turn
     final scoreResult = await _scoreService.calculateTurnScore(
       board: _board,
       placedThisTurn: _placedThisTurn,
       letterPool: _letterPool,
-      activeDoubleTurns: _currentPlayer == 1 ? _player1DoubleTurns : _player2DoubleTurns,
-      activeQuadTurns: _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
+      activeDoubleTurns:
+          _currentPlayer == 1 ? _player1DoubleTurns : _player2DoubleTurns,
+      activeQuadTurns:
+          _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
     );
 
     // Store bonuses gained this turn
     int gainedDouble = scoreResult.futureDoubleTurnsGained;
     int gainedQuad = scoreResult.futureQuadTurnsGained;
 
-    _applyScore(scoreResult, applyBonuses: false); // Don't increment bonuses yet
+    _applyScore(scoreResult,
+        applyBonuses: false); // Don't increment bonuses yet
 
     // Set firstMoveDone immediately after the first player's first valid turn
     if (!_firstMoveDone && _currentPlayer == _firstPlayerId) {
@@ -262,18 +274,14 @@ class GameController extends ChangeNotifier {
     if (_currentPlayer == 1) {
       if (_player1QuadTurns > 0) {
         _player1QuadTurns--;
-        print('Player 1 x4 decremented to [35m$_player1QuadTurns[0m');
       } else if (_player1DoubleTurns > 0) {
         _player1DoubleTurns--;
-        print('Player 1 x2 decremented to [34m$_player1DoubleTurns[0m');
       }
     } else {
       if (_player2QuadTurns > 0) {
         _player2QuadTurns--;
-        print('Player 2 x4 decremented to [35m$_player2QuadTurns[0m');
       } else if (_player2DoubleTurns > 0) {
         _player2DoubleTurns--;
-        print('Player 2 x2 decremented to [34m$_player2DoubleTurns[0m');
       }
     }
 
@@ -281,32 +289,31 @@ class GameController extends ChangeNotifier {
     if (_currentPlayer == 1) {
       if (gainedDouble > 0) {
         _player1DoubleTurns += gainedDouble;
-        print('Player 1 x2 incremented to [34m$_player1DoubleTurns[0m');
       }
       if (gainedQuad > 0) {
         _player1QuadTurns += gainedQuad;
-        print('Player 1 x4 incremented to [35m$_player1QuadTurns[0m');
       }
     } else {
       if (gainedDouble > 0) {
         _player2DoubleTurns += gainedDouble;
-        print('Player 2 x2 incremented to [34m$_player2DoubleTurns[0m');
       }
       if (gainedQuad > 0) {
         _player2QuadTurns += gainedQuad;
-        print('Player 2 x4 incremented to [35m$_player2QuadTurns[0m');
       }
     }
 
     _makePlacedLettersPermanent();
-    
-    if (!_firstMoveDone && _currentPlayer == _firstPlayerId && _placedThisTurn.isNotEmpty) {
+
+    if (!_firstMoveDone &&
+        _currentPlayer == _firstPlayerId &&
+        _placedThisTurn.isNotEmpty) {
       _firstMoveDone = true;
     }
 
     _placedThisTurn.clear();
-    
-    List<Letter> currentHand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
+
+    List<Letter> currentHand =
+        (_currentPlayer == 1) ? _player1Hand : _player2Hand;
     int lettersToDraw = 8 - currentHand.length;
     if (lettersToDraw > 0) {
       _drawLetters(currentHand, lettersToDraw);
@@ -315,16 +322,20 @@ class GameController extends ChangeNotifier {
     if (isGameOver()) {
       // TODO: Handle game over
     } else {
-      bool extraMove = _currentPlayer == 1 ? _player1ExtraMove : _player2ExtraMove;
+      bool extraMove =
+          _currentPlayer == 1 ? _player1ExtraMove : _player2ExtraMove;
       if (extraMove) {
-        if (_currentPlayer == 1) _player1ExtraMove = false; else _player2ExtraMove = false;
+        if (_currentPlayer == 1)
+          _player1ExtraMove = false;
+        else
+          _player2ExtraMove = false;
         _startTurnTimer();
       } else {
         _currentPlayer = (_currentPlayer == 1) ? 2 : 1;
         _startTurnTimer();
       }
     }
-    
+
     await _updateRepository();
     notifyListeners();
   }
@@ -342,7 +353,7 @@ class GameController extends ChangeNotifier {
   }
 
   // SECTION: Letter & Board Manipulation
-  
+
   void moveLetter(DraggableLetter draggableLetter, int toIndex) {
     if (isOnline && _localPlayerId != _currentPlayer) {
       onError?.call("It's not your turn!");
@@ -363,9 +374,10 @@ class GameController extends ChangeNotifier {
     _placedThisTurn.add(toIndex);
     notifyListeners();
   }
-  
+
   void returnLetterToHand(DraggableLetter draggableLetter) {
-    if (draggableLetter.origin != LetterOrigin.board || _board[draggableLetter.fromIndex!]?.isPermanent == true) {
+    if (draggableLetter.origin != LetterOrigin.board ||
+        _board[draggableLetter.fromIndex!]?.isPermanent == true) {
       return;
     }
 
@@ -376,7 +388,7 @@ class GameController extends ChangeNotifier {
     currentHand.add(draggableLetter.letter);
     notifyListeners();
   }
-  
+
   void setWildcardLetter(int boardIndex, String chosenLetter) {
     final tile = _board[boardIndex];
     // Ensure there is a letter and it is a wildcard.
@@ -385,7 +397,7 @@ class GameController extends ChangeNotifier {
       notifyListeners();
     }
   }
-  
+
   void _makePlacedLettersPermanent() {
     for (final index in _placedThisTurn) {
       _board[index]?.isPermanent = true;
@@ -393,17 +405,16 @@ class GameController extends ChangeNotifier {
   }
 
   // SECTION: Data Sync & Repository
-  
+
   void _listenToRemoteChanges() {
     if (_roomID == null) return;
     _repository.getGameStateStream(_roomID!).listen((data) {
       if (data.isNotEmpty) {
-        print('Received update from Firebase: $data');
         _syncFromRemote(data);
       }
     });
   }
-  
+
   Future<void> _updateRepository() async {
     if (_roomID == null) return;
     await _repository.updateGameState(
@@ -430,17 +441,22 @@ class GameController extends ChangeNotifier {
   void _syncFromRemote(Map<dynamic, dynamic> data) async {
     if (data['player1Score'] != null) _player1Score = data['player1Score'];
     if (data['player2Score'] != null) _player2Score = data['player2Score'];
-    if (data['turn'] != null) _currentPlayer = data['turn'] == 'player1' ? 1 : 2;
+    if (data['turn'] != null)
+      _currentPlayer = data['turn'] == 'player1' ? 1 : 2;
 
     if (data['players'] != null) {
       _player1Name = data['players']['player1'] ?? 'Player 1';
       _player2Name = data['players']['player2'] ?? 'Player 2';
     }
 
-    if (data['player1DoubleTurns'] != null) _player1DoubleTurns = data['player1DoubleTurns'];
-    if (data['player2DoubleTurns'] != null) _player2DoubleTurns = data['player2DoubleTurns'];
-    if (data['player1QuadTurns'] != null) _player1QuadTurns = data['player1QuadTurns'];
-    if (data['player2QuadTurns'] != null) _player2QuadTurns = data['player2QuadTurns'];
+    if (data['player1DoubleTurns'] != null)
+      _player1DoubleTurns = data['player1DoubleTurns'];
+    if (data['player2DoubleTurns'] != null)
+      _player2DoubleTurns = data['player2DoubleTurns'];
+    if (data['player1QuadTurns'] != null)
+      _player1QuadTurns = data['player1QuadTurns'];
+    if (data['player2QuadTurns'] != null)
+      _player2QuadTurns = data['player2QuadTurns'];
 
     if (data['boardState'] != null) {
       final boardFromDb = List<dynamic>.from(data['boardState']);
@@ -460,28 +476,33 @@ class GameController extends ChangeNotifier {
     if (data['player1Hand'] != null) {
       final handFromDb = List<dynamic>.from(data['player1Hand']);
       _player1Hand.clear();
-      _player1Hand.addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      _player1Hand
+          .addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
     }
-    
+
     if (data['player2Hand'] != null) {
       final handFromDb = List<dynamic>.from(data['player2Hand']);
       _player2Hand.clear();
-      _player2Hand.addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      _player2Hand
+          .addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
     }
 
     if (data['letterPool'] != null) {
       final poolFromDb = List<dynamic>.from(data['letterPool']);
       _letterPool.clear();
-      _letterPool.addAll(poolFromDb.map((s) => Letter.fromString(s.toString())));
+      _letterPool
+          .addAll(poolFromDb.map((s) => Letter.fromString(s.toString())));
     }
-    
+
     if (data['turnStartTimestamp'] != null) {
       _turnStartTimestamp = data['turnStartTimestamp'];
       if (_repository is FirebaseGameRepository) {
-        final serverNow = await (_repository as FirebaseGameRepository).fetchServerTime();
+        final serverNow =
+            await (_repository as FirebaseGameRepository).fetchServerTime();
         final localNow = DateTime.now().millisecondsSinceEpoch;
         final offset = localNow - serverNow;
-        if (_serverTimeOffset == 0 || (_serverTimeOffset - offset).abs() > 2000) {
+        if (_serverTimeOffset == 0 ||
+            (_serverTimeOffset - offset).abs() > 2000) {
           _serverTimeOffset = offset;
         }
       }
@@ -494,7 +515,7 @@ class GameController extends ChangeNotifier {
     if (data['firstPlayerId'] != null) {
       _firstPlayerId = data['firstPlayerId'];
     }
-    
+
     if (!_isSynced) {
       _isSynced = true;
     }
@@ -507,26 +528,32 @@ class GameController extends ChangeNotifier {
         endTurn(skipValidation: true, fromTimeout: true);
       }
     });
-    
+
     if (_localPlayerId == 1 && data['player2Left'] == true) {
-      print('Detected player2Left == true, triggering onPlayerLeft');
       if (onPlayerLeft != null) onPlayerLeft!();
     } else if (_localPlayerId == 2 && data['player1Left'] == true) {
-      print('Detected player1Left == true, triggering onPlayerLeft');
       if (onPlayerLeft != null) onPlayerLeft!();
     }
-    
+
     notifyListeners();
 
     // Only start the timer and set turnStartTimestamp when both players are present and timer hasn't started
-    if (isOnline && _roomID != null && data['players'] != null && data['players']['player1'] != null && data['players']['player2'] != null && (data['turnStartTimestamp'] == null || data['turnStartTimestamp'] == 0)) {
+    if (isOnline &&
+        _roomID != null &&
+        data['players'] != null &&
+        data['players']['player1'] != null &&
+        data['players']['player2'] != null &&
+        (data['turnStartTimestamp'] == null ||
+            data['turnStartTimestamp'] == 0)) {
       final now = DateTime.now().millisecondsSinceEpoch;
       await _repository.updateGameState(_roomID!, turnStartTimestamp: now);
       // _turnStartTimestamp will be set on next sync
     }
 
     // Multiplayer skip notification
-    if (isOnline && data['lastSkipped'] != null && data['lastSkipped'] != _localPlayerId) {
+    if (isOnline &&
+        data['lastSkipped'] != null &&
+        data['lastSkipped'] != _localPlayerId) {
       // Show alert only if the other player skipped
       if (!_skipDialogShown && onError != null) {
         _skipDialogShown = true;
@@ -551,7 +578,9 @@ class GameController extends ChangeNotifier {
   // SECTION: Helpers & Private Methods
 
   bool isPlayableTile(int index) {
-    bool blockBonus = !_firstMoveDone && _currentPlayer == _firstPlayerId && _bonusIndices.contains(index);
+    bool blockBonus = !_firstMoveDone &&
+        _currentPlayer == _firstPlayerId &&
+        _bonusIndices.contains(index);
     if (blockBonus) return false;
     return _rulesService.isPlayableTile(
       index: index,
@@ -561,7 +590,7 @@ class GameController extends ChangeNotifier {
       bonusIndices: _bonusIndices,
     );
   }
-  
+
   Future<bool> _hasValidWords() async {
     final wordsData = _scoreService.extractWordsForPlacedTilesWithBonuses(
       board: _board,
@@ -584,11 +613,9 @@ class GameController extends ChangeNotifier {
       if (applyBonuses) {
         if (result.futureDoubleTurnsGained > 0) {
           _player1DoubleTurns += result.futureDoubleTurnsGained;
-          print('Player 1 x2 incremented to $_player1DoubleTurns');
         }
         if (result.futureQuadTurnsGained > 0) {
           _player1QuadTurns += result.futureQuadTurnsGained;
-          print('Player 1 x4 incremented to $_player1QuadTurns');
         }
       }
     } else {
@@ -597,11 +624,9 @@ class GameController extends ChangeNotifier {
       if (applyBonuses) {
         if (result.futureDoubleTurnsGained > 0) {
           _player2DoubleTurns += result.futureDoubleTurnsGained;
-          print('Player 2 x2 incremented to $_player2DoubleTurns');
         }
         if (result.futureQuadTurnsGained > 0) {
           _player2QuadTurns += result.futureQuadTurnsGained;
-          print('Player 2 x4 incremented to $_player2QuadTurns');
         }
       }
     }
@@ -611,7 +636,8 @@ class GameController extends ChangeNotifier {
     _turnStartTimestamp = DateTime.now().millisecondsSinceEpoch;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (remainingTime <= 0 && (!isOnline || _localPlayerId == _currentPlayer)) {
+      if (remainingTime <= 0 &&
+          (!isOnline || _localPlayerId == _currentPlayer)) {
         endTurn();
       }
       notifyListeners();
@@ -629,25 +655,40 @@ class GameController extends ChangeNotifier {
     }
     return false;
   }
-  
+
   void _initializeLetterPool() {
     _letterPool = [];
-    _addLetters('ו', 1, 8); _addLetters('י', 1, 6); _addLetters('ת', 1, 6);
-    _addLetters('ר', 1, 6); _addLetters('ה', 1, 6); _addLetters('א', 2, 5);
-    _addLetters('ל', 2, 5); _addLetters('מ', 2, 5); _addLetters('ש', 2, 5);
-    _addLetters('ב', 3, 3); _addLetters('ד', 3, 3); _addLetters('נ', 4, 3);
-    _addLetters('פ', 4, 3); _addLetters('ח', 5, 3); _addLetters('כ', 5, 2);
-    _addLetters('ק', 5, 2); _addLetters('ע', 8, 2); _addLetters('ג', 8, 1);
-    _addLetters('ז', 8, 1); _addLetters('ט', 8, 1); _addLetters('ס', 8, 1);
-    _addLetters('צ', 8, 1); _addLetters(' ', 0, 2);
+    _addLetters('ו', 1, 7);
+    _addLetters('י', 1, 6);
+    _addLetters('ת', 2, 5);
+    _addLetters('ר', 3, 4);
+    _addLetters('ה', 2, 5);
+    _addLetters('א', 7, 3);
+    _addLetters('ל', 4, 4);
+    _addLetters('מ', 2, 5);
+    _addLetters('ש', 4, 3);
+    _addLetters('ב', 4, 3);
+    _addLetters('ד', 5, 3);
+    _addLetters('נ', 3, 4);
+    _addLetters('פ', 5, 3);
+    _addLetters('ח', 4, 3);
+    _addLetters('כ', 7, 3);
+    _addLetters('ק', 4, 3);
+    _addLetters('ע', 5, 3);
+    _addLetters('ג', 8, 2);
+    _addLetters('ז', 9, 2);
+    _addLetters('ט', 7, 3);
+    _addLetters('ס', 6, 3);
+    _addLetters('צ', 7, 3);
+    _addLetters(' ', 0, 2);
   }
-  
+
   void _addLetters(String letter, int score, int count) {
     for (int i = 0; i < count; i++) {
       _letterPool.add(Letter(letter, score));
     }
   }
-  
+
   void _drawLetters(List<Letter> hand, int count) {
     for (int i = 0; i < count; i++) {
       if (_letterPool.isNotEmpty) {
@@ -668,7 +709,8 @@ class GameController extends ChangeNotifier {
     final random = Random();
     final List<int> bonusIndices = [];
 
-    Set<int> markUnavailable(Set<int> available, int pos, List<int> edgeIndices) {
+    Set<int> markUnavailable(
+        Set<int> available, int pos, List<int> edgeIndices) {
       // Remove pos and all neighbors (including diagonals) from available
       int row = pos ~/ 12;
       int col = pos % 12;
@@ -713,7 +755,7 @@ class GameController extends ChangeNotifier {
 
     return bonusIndices;
   }
-  
+
   BonusInfo _createRandomBonus() {
     final random = Random();
     final icons = [
@@ -750,7 +792,7 @@ class GameController extends ChangeNotifier {
       scoreValue: scoreValue,
     );
   }
-  
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -765,7 +807,6 @@ class GameController extends ChangeNotifier {
     if (!isOnline || _roomID == null) return;
     final db = FirebaseDatabase.instance.ref();
     final playerKey = _localPlayerId == 1 ? 'player1Left' : 'player2Left';
-    print('Setting $playerKey to true in Firebase');
     await db.child('rooms/$_roomID/$playerKey').set(true);
   }
 
@@ -793,4 +834,4 @@ class GameController extends ChangeNotifier {
     }
     _passTurn();
   }
-} 
+}
