@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 
+// 1. Define a mapping from icon names to IconData (add more as needed)
+const Map<String, IconData> bonusIconMap = {
+  'star': Icons.star,
+  'bolt': Icons.bolt,
+  'add': Icons.add,
+  // Add more icon mappings as needed
+};
+
 enum BonusType {
   score,
   futureDouble,
@@ -13,16 +21,19 @@ enum BonusType {
 }
 
 class BonusInfo {
-  final IconData icon;
+  final String iconName; // Store the icon name
   final Color color;
   final BonusType type;
   final int? scoreValue; // For score bonuses
 
-  BonusInfo({required this.icon, required this.color, required this.type, this.scoreValue});
+  BonusInfo({required this.iconName, required this.color, required this.type, this.scoreValue});
+
+  // Getter to retrieve the IconData using the mapping
+  IconData get icon => bonusIconMap[iconName] ?? Icons.help;
 
   // Serialization
   Map<String, dynamic> toJson() => {
-    'icon': icon.codePoint,
+    'iconName': iconName,
     'color': color.value,
     'type': type.toJson(),
     'scoreValue': scoreValue,
@@ -30,7 +41,7 @@ class BonusInfo {
 
   factory BonusInfo.fromJson(Map<String, dynamic> json) {
     return BonusInfo(
-      icon: IconData(json['icon'], fontFamily: 'MaterialIcons'),
+      iconName: json['iconName'],
       color: Color(json['color']),
       type: BonusType.fromJson(json['type']),
       scoreValue: json['scoreValue'],

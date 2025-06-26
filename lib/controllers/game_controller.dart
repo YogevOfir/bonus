@@ -716,11 +716,11 @@ class GameController extends ChangeNotifier {
   
   BonusInfo _createRandomBonus() {
     final random = Random();
-    final icons = [
-      Icons.star,
-      Icons.diamond_outlined,
-      Icons.favorite,
-      Icons.bolt
+    const iconNames = [
+      'star',
+      'bolt',
+      'add',
+      // Add more icon names as needed, matching bonusIconMap
     ];
     final colors = [
       Colors.amber,
@@ -744,7 +744,7 @@ class GameController extends ChangeNotifier {
       scoreValue = values[random.nextInt(values.length)];
     }
     return BonusInfo(
-      icon: icons[random.nextInt(icons.length)],
+      iconName: iconNames[random.nextInt(iconNames.length)],
       color: colors[random.nextInt(colors.length)],
       type: type,
       scoreValue: scoreValue,
