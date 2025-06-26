@@ -15,7 +15,9 @@ class LetterTile extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: isPermanent ? const Color.fromARGB(255, 161, 137, 65) : Colors.amber[200],
+        color: isPermanent
+            ? const Color.fromARGB(255, 161, 137, 65)
+            : Colors.amber[200],
         border: Border.all(color: Colors.black, width: 1.5),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -23,7 +25,7 @@ class LetterTile extends StatelessWidget {
         children: [
           Center(
             child: Text(
-              isBlank ? '*' : letter.letter,
+              isBlank ? '🤡' : letter.letter,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
@@ -40,4 +42,4 @@ class LetterTile extends StatelessWidget {
       ),
     );
   }
-} 
+}

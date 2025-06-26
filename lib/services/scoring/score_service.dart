@@ -34,7 +34,8 @@ class ScoreService {
       int col = idx % 12;
       int left = col, right = col;
       while (left > 0 && board[row * 12 + (left - 1)]?.letter != null) left--;
-      while (right < 11 && board[row * 12 + (right + 1)]?.letter != null) right++;
+      while (right < 11 && board[row * 12 + (right + 1)]?.letter != null)
+        right++;
       if (right - left + 1 > 1) {
         String w = '';
         BonusInfo? bonus;
@@ -51,7 +52,11 @@ class ScoreService {
           }
         }
         if (w.length > 1 && !seen.contains(w)) {
-          words.add({'word': w, 'bonus': bonus, 'indices': indices.reversed.toList()});
+          words.add({
+            'word': w,
+            'bonus': bonus,
+            'indices': indices.reversed.toList()
+          });
           seen.add(w);
         }
       }
@@ -94,7 +99,7 @@ class ScoreService {
       board: board,
       placedThisTurn: placedThisTurn,
     );
-    
+
     int totalScore = 0;
     bool extraMoveGained = false;
     int futureDoubleTurnsGained = 0;
@@ -138,15 +143,11 @@ class ScoreService {
       totalScore += score;
     }
 
-    print('Total score before multiplier: $totalScore');
     if (activeQuadTurns > 0) {
-      print('Applying x4 multiplier to score');
       totalScore *= 4;
     } else if (activeDoubleTurns > 0) {
-      print('Applying x2 multiplier to score');
       totalScore *= 2;
     }
-    print('Total score after multiplier: $totalScore');
 
     return TurnScoreResult(
       score: totalScore,
@@ -169,4 +170,4 @@ class TurnScoreResult {
     this.futureDoubleTurnsGained = 0,
     this.futureQuadTurnsGained = 0,
   });
-} 
+}
