@@ -483,18 +483,50 @@ class _HomeScreenState extends State<HomeScreen> {
             children: const [
               Icon(Icons.info_outline, color: Colors.cyan, size: 28),
               SizedBox(width: 8),
-              Text('Instructions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              Text('הוראות משחק', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: const SingleChildScrollView(
-            child: Text(
-              'Here are the instructions for the game...',
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Text(
+                '''
+1. מטרת המשחק:
+   ליצור מילים חדשות על לוח המשחק בעזרת האותיות שבידך, לצבור נקודות ולנצח את היריב.
+
+2. מהלך המשחק:
+   - כל שחקן בתורו גורר אותיות מהיד אל הלוח כדי ליצור מילה חדשה.
+   - כל האותיות שמונחות בתור חייבות להיות בשורה אחת (אופקית) או בעמודה אחת (אנכית), ללא פיצול.
+   - כל מילה חדשה חייבת להיות מחוברת למילים קיימות על הלוח (מלבד המילה הראשונה).
+
+3. חוקים נוספים:
+   - ניתן להניח אותיות רק על משבצות ריקות.
+   - אסור להניח אותיות כך שהן לא יוצרות מילה תקינה בעברית.
+   - ניתן להחזיר אותיות ליד לפני סיום התור.
+
+4. סיום תור:
+   - לאחר הנחת האותיות, לחץ על "סיום תור" כדי לחשב את הניקוד.
+   - אם לא ביצעת מהלך, תוכל ללחוץ על "דלג תור" כדי להעביר את התור ליריב.
+   - אם הזמן נגמר, התור יידלג אוטומטית והאותיות שהונחו יחזרו ליד.
+
+5. בונוסים:
+   - חלק מהמשבצות מעניקות בונוסים מיוחדים (כמו הכפלת ניקוד, תור נוסף ועוד).
+   - בונוסים מופעלים רק כאשר מניחים אות על המשבצת המסומנת.
+
+6. סיום המשחק:
+   - המשחק מסתיים כאשר כל האותיות נגמרות ואין לשחקנים אותיות ביד.
+   - המנצח הוא השחקן עם מספר הנקודות הגבוה ביותר.
+
+בהצלחה ושיהיה משחק מהנה!
+''',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+              ),
             ),
           ),
           actions: <Widget>[
             _buildDialogButton(
               context,
-              label: 'Close',
+              label: 'סגור',
               color: Colors.cyan,
               onPressed: () {
                 Navigator.of(context).pop();
