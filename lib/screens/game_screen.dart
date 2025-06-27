@@ -231,13 +231,9 @@ class _GameScreenState extends State<GameScreen> {
                     padding: EdgeInsets.all(isSmallScreen ? 6.0 : 10.0),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: 600,
-                          maxHeight: MediaQuery.of(context).size.height * 0.95,
-                        ),
+                        constraints: BoxConstraints(maxWidth: 600),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // Score Board
                             _buildScoreBoard(gameController, isSmallScreen),
@@ -274,7 +270,7 @@ class _GameScreenState extends State<GameScreen> {
                                 gameController, context, isSmallScreen),
 
                             // Action Buttons
-                            SizedBox(height: isSmallScreen ? 6 : 10),
+                            SizedBox(height: isSmallScreen ? 8 : 14),
                             _buildActionButtons(
                                 gameController, isMyTurn, context, isSmallScreen),
                             SizedBox(height: isSmallScreen ? 6 : 10),

@@ -73,11 +73,11 @@ class GameController extends ChangeNotifier {
   bool get wordsLoaded => _validationService.wordsLoaded;
   List<Letter> get letterPool => _letterPool;
   int get remainingTime {
-    if (_turnStartTimestamp == null) return 120;
+    if (_turnStartTimestamp == null) return 20;
     // In local games, offset is 0. In online games, it's calculated.
     final now = DateTime.now().millisecondsSinceEpoch - _serverTimeOffset;
     final elapsed = ((now - _turnStartTimestamp!) / 1000).floor();
-    return (120 - elapsed).clamp(0, 120);
+    return (20 - elapsed).clamp(0, 20);
   }
 
   List<int> get placedThisTurn => _placedThisTurn.toList();
@@ -220,7 +220,16 @@ class GameController extends ChangeNotifier {
       if (fromTimeout) {
         _returnPlacedLettersToHand();
         onTurnPassedDueToTimeout?.call();
+        _passTurn();
+        return;
       }
+      _passTurn();
+      return;
+    }
+
+    if (fromTimeout) {
+      _returnPlacedLettersToHand();
+      onTurnPassedDueToTimeout?.call();
       _passTurn();
       return;
     }
@@ -524,8 +533,7 @@ class GameController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       notifyListeners();
       if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
-        if (_placedThisTurn.isNotEmpty) _returnPlacedLettersToHand();
-        endTurn(skipValidation: true, fromTimeout: true);
+        skipTurn();
       }
     });
 
@@ -638,7 +646,7 @@ class GameController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingTime <= 0 &&
           (!isOnline || _localPlayerId == _currentPlayer)) {
-        endTurn();
+        skipTurn();
       }
       notifyListeners();
     });
@@ -832,6 +840,7 @@ class GameController extends ChangeNotifier {
     if (isOnline && _roomID != null) {
       await _repository.updateGameState(_roomID!, lastSkipped: _localPlayerId);
     }
+    _returnPlacedLettersToHand();
     _passTurn();
   }
 }
