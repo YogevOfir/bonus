@@ -229,53 +229,58 @@ class _GameScreenState extends State<GameScreen> {
 
                   return Padding(
                     padding: EdgeInsets.all(isSmallScreen ? 6.0 : 10.0),
-                    child: Column(
-                      children: [
-                        // Score Board
-                        _buildScoreBoard(gameController, isSmallScreen),
-                        SizedBox(height: isSmallScreen ? 6 : 10),
-
-                        // Timer and Deck Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: 600,
+                          maxHeight: MediaQuery.of(context).size.height * 0.95,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                                child:
-                                    _buildTimer(gameController, isSmallScreen)),
-                            SizedBox(width: isSmallScreen ? 6 : 8),
-                            Expanded(
-                                child:
-                                    _buildDeck(gameController, isSmallScreen)),
+                            // Score Board
+                            _buildScoreBoard(gameController, isSmallScreen),
+                            SizedBox(height: isSmallScreen ? 6 : 10),
+
+                            // Timer and Deck Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Expanded(
+                                    child: _buildTimer(gameController, isSmallScreen)),
+                                SizedBox(width: isSmallScreen ? 6 : 8),
+                                Expanded(
+                                    child: _buildDeck(gameController, isSmallScreen)),
+                              ],
+                            ),
+                            SizedBox(height: isSmallScreen ? 6 : 10),
+
+                            // Game Board
+                            Card(
+                              elevation: 8,
+                              color: Colors.white.withOpacity(0.95),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18)),
+                              child: Padding(
+                                padding: EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
+                                child: GameBoard(),
+                              ),
+                            ),
+
+                            // Player Hand Area
+                            SizedBox(height: isSmallScreen ? 6 : 10),
+                            _buildPlayerHandArea(
+                                gameController, context, isSmallScreen),
+
+                            // Action Buttons
+                            SizedBox(height: isSmallScreen ? 6 : 10),
+                            _buildActionButtons(
+                                gameController, isMyTurn, context, isSmallScreen),
+                            SizedBox(height: isSmallScreen ? 6 : 10),
                           ],
                         ),
-                        SizedBox(height: isSmallScreen ? 6 : 10),
-
-                        // Game Board
-                        Expanded(
-                          child: Card(
-                            elevation: 8,
-                            color: Colors.white.withOpacity(0.95),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18)),
-                            child: Padding(
-                              padding:
-                                  EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
-                              child: GameBoard(),
-                            ),
-                          ),
-                        ),
-
-                        // Player Hand Area
-                        SizedBox(height: isSmallScreen ? 6 : 10),
-                        _buildPlayerHandArea(
-                            gameController, context, isSmallScreen),
-
-                        // Action Buttons
-                        SizedBox(height: isSmallScreen ? 6 : 10),
-                        _buildActionButtons(
-                            gameController, isMyTurn, context, isSmallScreen),
-                        SizedBox(height: isSmallScreen ? 6 : 10),
-                      ],
+                      ),
                     ),
                   );
                 },
