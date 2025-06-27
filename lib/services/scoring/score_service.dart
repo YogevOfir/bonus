@@ -26,7 +26,7 @@ class ScoreService {
     required List<BoardTile?> board,
     required Set<int> placedThisTurn,
   }) {
-    Set<String> seen = {};
+    Set<String> seen = {}; // Will store joined indices as unique key
     List<Map<String, dynamic>> words = [];
     for (final idx in placedThisTurn) {
       // Horizontal word
@@ -51,13 +51,14 @@ class ScoreService {
             bonus ??= tile!.bonus;
           }
         }
-        if (w.length > 1 && !seen.contains(w)) {
+        final indicesKey = indices.reversed.join(',');
+        if (w.length > 1 && !seen.contains(indicesKey)) {
           words.add({
             'word': w,
             'bonus': bonus,
             'indices': indices.reversed.toList()
           });
-          seen.add(w);
+          seen.add(indicesKey);
         }
       }
       // Vertical word
@@ -79,9 +80,10 @@ class ScoreService {
             bonus ??= tile!.bonus;
           }
         }
-        if (w.length > 1 && !seen.contains(w)) {
+        final indicesKey = indices.join(',');
+        if (w.length > 1 && !seen.contains(indicesKey)) {
           words.add({'word': w, 'bonus': bonus, 'indices': indices});
-          seen.add(w);
+          seen.add(indicesKey);
         }
       }
     }

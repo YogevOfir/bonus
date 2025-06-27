@@ -712,29 +712,132 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildActionButtons(GameController gameController, bool isMyTurn,
       BuildContext context, bool isSmallScreen) {
     return SizedBox(
-      width: isSmallScreen ? 220 : 280,
-      height: 56,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      width: isSmallScreen ? 250 : 320,
+      height: 44,
+      child: Stack(
         children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isMyTurn ? Colors.deepPurple : Colors.grey,
-                foregroundColor: Colors.white,
-                textStyle:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                elevation: 6,
-              ),
-              onPressed: isMyTurn
-                  ? () async {
-                      final wasMyTurn = isMyTurn;
-                      final results =
-                          await gameController.validateAndGetTurnResults();
-                      if (results == null) {
-                        // Show detailed invalid words dialog
+          Align(
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: isSmallScreen ? 140 : 180,
+              height: 44,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isMyTurn ? Colors.deepPurple : Colors.grey,
+                  foregroundColor: Colors.white,
+                  textStyle:
+                      const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  elevation: 6,
+                  minimumSize: const Size(0, 44),
+                ),
+                onPressed: isMyTurn
+                    ? () async {
+                        final wasMyTurn = isMyTurn;
+                        final results =
+                            await gameController.validateAndGetTurnResults();
+                        if (results == null) {
+                          // Show detailed invalid words dialog
+                          final wordsData = gameController.board;
+                          final placedThisTurn = gameController.placedThisTurn;
+                          final scoreService = gameController.scoreService;
+                          final validationService =
+                              gameController.validationService;
+                          Set<int> placedSet = placedThisTurn.toSet();
+                          int wordScore(Map<String, dynamic> wordData) {
+                            int score = 0;
+                            final indices = wordData['indices'] as List<int>?;
+                            if (indices != null) {
+                              for (final idx in indices) {
+                                final tile = gameController.board[idx];
+                                if (tile != null && tile.letter != null) {
+                                  score += tile.letter!.isWildcard
+                                      ? 0
+                                      : tile.letter!.score;
+                                }
+                              }
+                            }
+                            return score;
+                          }
+
+                          final wordList =
+                              scoreService.extractWordsForPlacedTilesWithBonuses(
+                            board: wordsData,
+                            placedThisTurn: placedSet,
+                          );
+                          if (!mounted) return;
+                          await showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              backgroundColor: Colors.white.withOpacity(0.95),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              title: Row(
+                                children: [
+                                  Icon(Icons.info_outline,
+                                      color: Colors.deepPurple, size: 28),
+                                  SizedBox(width: 8),
+                                  Text('Turn Words',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.deepPurple)),
+                                ],
+                              ),
+                              content: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    for (final wordData in wordList)
+                                      Row(
+                                        children: [
+                                          Text(wordData['word'],
+                                              style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold)),
+                                          SizedBox(width: 8),
+                                          validationService
+                                                  .isValidWord(wordData['word'])
+                                              ? Icon(Icons.check_circle,
+                                                  color: Colors.green, size: 22)
+                                              : Icon(Icons.cancel,
+                                                  color: Colors.red, size: 22),
+                                          SizedBox(width: 8),
+                                          if (validationService
+                                              .isValidWord(wordData['word']))
+                                            Text(
+                                              '+${wordScore(wordData)}',
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.green[800]),
+                                            ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.deepPurple,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12)),
+                                    textStyle:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Get all words and their validation
                         final wordsData = gameController.board;
                         final placedThisTurn = gameController.placedThisTurn;
                         final scoreService = gameController.scoreService;
@@ -762,6 +865,76 @@ class _GameScreenState extends State<GameScreen> {
                           board: wordsData,
                           placedThisTurn: placedSet,
                         );
+
+                        // Show bonus dialog if any bonus was collected
+                        final collectedBonuses = wordList
+                            .where((w) =>
+                                w['bonus'] != null &&
+                                validationService.isValidWord(w['word']))
+                            .map((w) => w['bonus'] as BonusInfo)
+                            .toList();
+                        if (collectedBonuses.isNotEmpty) {
+                          for (final bonus in collectedBonuses) {
+                            if (!mounted) return;
+                            await showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: bonus.color.withOpacity(0.92),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  side: BorderSide(
+                                      color: Colors.black.withOpacity(0.08),
+                                      width: 2),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Icon(bonus.icon,
+                                        color: Colors.white, size: 32),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Bonus Collected!',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                content: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(
+                                    _bonusDescription(bonus),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: Colors.black26,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      textStyle: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        }
+
+                        final allValid = wordList.isNotEmpty &&
+                            wordList.every(
+                                (w) => validationService.isValidWord(w['word']));
                         if (!mounted) return;
                         await showDialog(
                           context: context,
@@ -824,213 +997,50 @@ class _GameScreenState extends State<GameScreen> {
                                   textStyle:
                                       TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                                onPressed: () => Navigator.of(context).pop(),
+                                onPressed: () async {
+                                  Navigator.of(context).pop();
+                                  await gameController.endTurn(
+                                      skipValidation: true);
+                                },
                                 child: Text('OK'),
                               ),
                             ],
                           ),
                         );
-                        return;
                       }
-
-                      // Get all words and their validation
-                      final wordsData = gameController.board;
-                      final placedThisTurn = gameController.placedThisTurn;
-                      final scoreService = gameController.scoreService;
-                      final validationService =
-                          gameController.validationService;
-                      Set<int> placedSet = placedThisTurn.toSet();
-                      int wordScore(Map<String, dynamic> wordData) {
-                        int score = 0;
-                        final indices = wordData['indices'] as List<int>?;
-                        if (indices != null) {
-                          for (final idx in indices) {
-                            final tile = gameController.board[idx];
-                            if (tile != null && tile.letter != null) {
-                              score += tile.letter!.isWildcard
-                                  ? 0
-                                  : tile.letter!.score;
-                            }
-                          }
-                        }
-                        return score;
-                      }
-
-                      final wordList =
-                          scoreService.extractWordsForPlacedTilesWithBonuses(
-                        board: wordsData,
-                        placedThisTurn: placedSet,
-                      );
-
-                      // Show bonus dialog if any bonus was collected
-                      final collectedBonuses = wordList
-                          .where((w) =>
-                              w['bonus'] != null &&
-                              validationService.isValidWord(w['word']))
-                          .map((w) => w['bonus'] as BonusInfo)
-                          .toList();
-                      if (collectedBonuses.isNotEmpty) {
-                        for (final bonus in collectedBonuses) {
-                          if (!mounted) return;
-                          await showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: bonus.color.withOpacity(0.92),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                side: BorderSide(
-                                    color: Colors.black.withOpacity(0.08),
-                                    width: 2),
-                              ),
-                              title: Row(
-                                children: [
-                                  Icon(bonus.icon,
-                                      color: Colors.white, size: 32),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    'Bonus Collected!',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 22,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              content: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Text(
-                                  _bonusDescription(bonus),
-                                  style: const TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    backgroundColor: Colors.black26,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12)),
-                                    textStyle: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('OK'),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                      }
-
-                      final allValid = wordList.isNotEmpty &&
-                          wordList.every(
-                              (w) => validationService.isValidWord(w['word']));
-                      if (!mounted) return;
-                      await showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          backgroundColor: Colors.white.withOpacity(0.95),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20)),
-                          title: Row(
-                            children: [
-                              Icon(Icons.info_outline,
-                                  color: Colors.deepPurple, size: 28),
-                              SizedBox(width: 8),
-                              Text('Turn Words',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.deepPurple)),
-                            ],
-                          ),
-                          content: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (final wordData in wordList)
-                                  Row(
-                                    children: [
-                                      Text(wordData['word'],
-                                          style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold)),
-                                      SizedBox(width: 8),
-                                      validationService
-                                              .isValidWord(wordData['word'])
-                                          ? Icon(Icons.check_circle,
-                                              color: Colors.green, size: 22)
-                                          : Icon(Icons.cancel,
-                                              color: Colors.red, size: 22),
-                                      SizedBox(width: 8),
-                                      if (validationService
-                                          .isValidWord(wordData['word']))
-                                        Text(
-                                          '+${wordScore(wordData)}',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.green[800]),
-                                        ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Colors.deepPurple,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                textStyle:
-                                    TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: () async {
-                                Navigator.of(context).pop();
-                                await gameController.endTurn(
-                                    skipValidation: true);
-                              },
-                              child: Text('OK'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  : null,
-              icon: const Icon(Icons.check_circle_outline, size: 30),
-              label: const Text('End Turn'),
+                    : null,
+                icon: const Icon(Icons.check_circle_outline, size: 30),
+                label: const Text('End Turn'),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: IconButton(
-              icon: const Icon(Icons.skip_next, color: Colors.white, size: 28),
-              style: ButtonStyle(
-                backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
-                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: SizedBox(
+              width: 52,
+              height: 44,
+              child: IconButton(
+                icon: const Icon(Icons.skip_next, color: Colors.white, size: 28),
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  minimumSize: MaterialStateProperty.all<Size>(const Size(52, 44)),
                 ),
+                tooltip: 'Skip Turn',
+                onPressed: isMyTurn
+                    ? () {
+                        final gameController =
+                            Provider.of<GameController>(context, listen: false);
+                        gameController.skipTurn();
+                      }
+                    : null,
               ),
-              tooltip: 'Skip Turn',
-              onPressed: isMyTurn
-                  ? () {
-                      final gameController =
-                          Provider.of<GameController>(context, listen: false);
-                      gameController.skipTurn();
-                    }
-                  : null,
             ),
           ),
         ],
