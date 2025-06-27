@@ -540,7 +540,9 @@ class _GameScreenState extends State<GameScreen> {
         Text(
           widget.isAiGame
               ? 'Computer\'s Hand'
-              : "${gameController.player2Name}'s Hand",
+              : (widget.localPlayerId == 2
+                  ? 'Your Hand'
+                  : "${gameController.player2Name}'s Hand"),
           style: TextStyle(
             fontSize: isSmallScreen ? 12 : 14,
             fontWeight: FontWeight.bold,
@@ -554,7 +556,9 @@ class _GameScreenState extends State<GameScreen> {
         ),
         SizedBox(height: isSmallScreen ? 8 : 12),
         Text(
-          "${gameController.player1Name}'s Hand",
+          (widget.localPlayerId == 1
+              ? 'Your Hand'
+              : "${gameController.player1Name}'s Hand"),
           style: TextStyle(
             fontSize: isSmallScreen ? 12 : 14,
             fontWeight: FontWeight.bold,
@@ -1025,7 +1029,9 @@ class _GameScreenState extends State<GameScreen> {
               child: IconButton(
                 icon: const Icon(Icons.skip_next, color: Colors.white, size: 28),
                 style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+                  backgroundColor: MaterialStateProperty.all<Color>(
+                    isMyTurn ? Colors.red : Colors.grey
+                  ),
                   shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

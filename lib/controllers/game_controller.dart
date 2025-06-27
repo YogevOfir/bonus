@@ -533,7 +533,7 @@ class GameController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       notifyListeners();
       if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
-        skipTurn();
+        skipTurn(dueToTimeout: true);
       }
     });
 
@@ -646,7 +646,7 @@ class GameController extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingTime <= 0 &&
           (!isOnline || _localPlayerId == _currentPlayer)) {
-        skipTurn();
+        skipTurn(dueToTimeout: true);
       }
       notifyListeners();
     });
@@ -831,7 +831,7 @@ class GameController extends ChangeNotifier {
     _placedThisTurn.clear();
   }
 
-  void skipTurn() async {
+  void skipTurn({bool dueToTimeout = false}) async {
     if (isOnline && _localPlayerId != _currentPlayer) {
       onError?.call("It's not your turn!");
       return;
@@ -839,6 +839,16 @@ class GameController extends ChangeNotifier {
     // Multiplayer: notify the other player
     if (isOnline && _roomID != null) {
       await _repository.updateGameState(_roomID!, lastSkipped: _localPlayerId);
+    }
+    // Only show dialog for the local player whose turn it is
+    if (!isOnline || _localPlayerId == _currentPlayer) {
+      if (onError != null) {
+        if (dueToTimeout) {
+          onError!("Time's up! Your turn was skipped.");
+        } else {
+          onError!("Turn skipped!");
+        }
+      }
     }
     _returnPlacedLettersToHand();
     _passTurn();
