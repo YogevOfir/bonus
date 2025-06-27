@@ -166,7 +166,7 @@ class GameBoard extends StatelessWidget {
 
   Future<void> _showWildcardDialog(BuildContext context, int boardIndex) async {
     final gameController = Provider.of<GameController>(context, listen: false);
-    const alphabet = 'תשרקצסנמלכיטחזוהדגבא';
+    const alphabet = 'הדגבאיטחזוסנמלכתשרקצ';
 
     final chosenLetter = await showDialog<String>(
       context: context,
