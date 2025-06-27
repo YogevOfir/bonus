@@ -73,11 +73,11 @@ class GameController extends ChangeNotifier {
   bool get wordsLoaded => _validationService.wordsLoaded;
   List<Letter> get letterPool => _letterPool;
   int get remainingTime {
-    if (_turnStartTimestamp == null) return 20;
+    if (_turnStartTimestamp == null) return 120;
     // In local games, offset is 0. In online games, it's calculated.
     final now = DateTime.now().millisecondsSinceEpoch - _serverTimeOffset;
     final elapsed = ((now - _turnStartTimestamp!) / 1000).floor();
-    return (20 - elapsed).clamp(0, 20);
+    return (120 - elapsed).clamp(0, 120);
   }
 
   List<int> get placedThisTurn => _placedThisTurn.toList();

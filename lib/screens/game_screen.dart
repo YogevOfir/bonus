@@ -871,6 +871,25 @@ class _GameScreenState extends State<GameScreen> {
                           placedThisTurn: placedSet,
                         );
 
+                        // Calculate total score and bonus multiplier
+                        int baseScore = 0;
+                        for (final wordData in wordList) {
+                          if (validationService.isValidWord(wordData['word'])) {
+                            baseScore += wordScore(wordData);
+                          }
+                        }
+                        int multiplier = 1;
+                        if (gameController.currentPlayer == 1 && gameController.player1QuadTurns > 0) {
+                          multiplier = 4;
+                        } else if (gameController.currentPlayer == 1 && gameController.player1DoubleTurns > 0) {
+                          multiplier = 2;
+                        } else if (gameController.currentPlayer == 2 && gameController.player2QuadTurns > 0) {
+                          multiplier = 4;
+                        } else if (gameController.currentPlayer == 2 && gameController.player2DoubleTurns > 0) {
+                          multiplier = 2;
+                        }
+                        int totalScore = baseScore * multiplier;
+
                         // Show bonus dialog if any bonus was collected
                         final collectedBonuses = wordList
                             .where((w) =>
@@ -989,6 +1008,29 @@ class _GameScreenState extends State<GameScreen> {
                                           ),
                                       ],
                                     ),
+                                  const SizedBox(height: 12),
+                                  Divider(),
+                                  Row(
+                                    children: [
+                                      Text('Total Score:',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold)),
+                                      SizedBox(width: 8),
+                                      if (multiplier > 1)
+                                        Text('$baseScore x $multiplier = $totalScore',
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.deepPurple,
+                                                fontWeight: FontWeight.bold)),
+                                      if (multiplier == 1)
+                                        Text('$totalScore',
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.deepPurple,
+                                                fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
