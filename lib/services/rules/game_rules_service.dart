@@ -30,6 +30,13 @@ class GameRulesService {
   }) {
     if (placedThisTurn.isEmpty) return true;
     
+    // Ensure all placed letters are in the same row or same column
+    final rows = placedThisTurn.map((i) => i ~/ 12).toSet();
+    final cols = placedThisTurn.map((i) => i % 12).toSet();
+    if (rows.length > 1 && cols.length > 1) {
+      return false;
+    }
+
     final visited = <int>{};
     final queue = <int>[];
     queue.add(placedThisTurn.first);
