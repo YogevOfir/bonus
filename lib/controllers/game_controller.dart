@@ -87,6 +87,7 @@ class GameController extends ChangeNotifier {
   int get player1QuadTurns => _player1QuadTurns;
   int get player2DoubleTurns => _player2DoubleTurns;
   int get player2QuadTurns => _player2QuadTurns;
+  bool get firstMoveDone => _firstMoveDone;
 
   GameController({GameRepository? repository}) {
     _validationService = WordValidationService();
@@ -767,10 +768,11 @@ class GameController extends ChangeNotifier {
   BonusInfo _createRandomBonus() {
     final random = Random();
     const iconNames = [
-      'star',
-      'bolt',
-      'add',
-      // Add more icon names as needed, matching bonusIconMap
+      '3dicons-fire-dynamic-color.png',
+      '3dicons-gift-box-dynamic-color.png',
+      '3dicons-heart-dynamic-color.png',
+      '3dicons-money-dynamic-color.png',
+      '3dicons-dollar-dynamic-color.png',
     ];
     final colors = [
       Colors.amber,

@@ -82,6 +82,36 @@ class GameBoard extends StatelessWidget {
           } else if (!isPlayable) {
             // Always show bonuses, even if not playable
             if (bonusInfo != null) {
+              final isFirstTurn = !(gameController.firstMoveDone);
+              Widget bonusIconContainer = Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: bonusInfo.color.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: bonusInfo.color.withOpacity(0.5), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.brown.withOpacity(0.08),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Image.asset(
+                    bonusInfo.assetPath,
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+              );
+              if (isFirstTurn) {
+                bonusIconContainer = Opacity(
+                  opacity: 0.5,
+                  child: bonusIconContainer,
+                );
+              }
               tileContent = Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -90,14 +120,46 @@ class GameBoard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
-                  child: Icon(bonusInfo.icon,
-                      color: bonusInfo.color.withOpacity(0.4), size: 28),
+                  child: bonusIconContainer,
                 ),
               );
             } else {
               tileContent = Container();
             }
           } else {
+            final isFirstTurn = !(gameController.firstMoveDone);
+            Widget? bonusIconContainer;
+            if (bonusInfo != null) {
+              bonusIconContainer = Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: bonusInfo.color.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: bonusInfo.color.withOpacity(0.5), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.brown.withOpacity(0.08),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Image.asset(
+                    bonusInfo.assetPath,
+                    width: 22,
+                    height: 22,
+                  ),
+                ),
+              );
+              if (isFirstTurn) {
+                bonusIconContainer = Opacity(
+                  opacity: 0.5,
+                  child: bonusIconContainer,
+                );
+              }
+            }
             tileContent = Container(
               decoration: BoxDecoration(
                 border: Border.all(
@@ -130,8 +192,7 @@ class GameBoard extends StatelessWidget {
               ),
               child: bonusInfo != null
                   ? Center(
-                      child: Icon(bonusInfo.icon,
-                          color: bonusInfo.color, size: 28),
+                      child: bonusIconContainer,
                     )
                   : null,
             );

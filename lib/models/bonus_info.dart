@@ -21,15 +21,15 @@ enum BonusType {
 }
 
 class BonusInfo {
-  final String iconName; // Store the icon name
+  final String iconName; // Store the asset file name, e.g. 3dicons-fire-dynamic-color.png
   final Color color;
   final BonusType type;
   final int? scoreValue; // For score bonuses
 
   BonusInfo({required this.iconName, required this.color, required this.type, this.scoreValue});
 
-  // Getter to retrieve the IconData using the mapping
-  IconData get icon => bonusIconMap[iconName] ?? Icons.help;
+  // Getter to retrieve the asset path for the icon
+  String get assetPath => 'assets/bonuses_icons/$iconName';
 
   // Serialization
   Map<String, dynamic> toJson() => {

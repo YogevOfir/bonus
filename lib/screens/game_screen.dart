@@ -903,17 +903,35 @@ class _GameScreenState extends State<GameScreen> {
                             await showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                backgroundColor: bonus.color.withOpacity(0.92),
+                                backgroundColor: Colors.white.withOpacity(0.95),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  side: BorderSide(
-                                      color: Colors.black.withOpacity(0.08),
-                                      width: 2),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
                                 title: Row(
                                   children: [
-                                    Icon(bonus.icon,
-                                        color: Colors.white, size: 32),
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: bonus.color.withOpacity(0.18),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: bonus.color.withOpacity(0.5), width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.brown.withOpacity(0.08),
+                                            blurRadius: 4,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Image.asset(
+                                          bonus.assetPath,
+                                          width: 32,
+                                          height: 32,
+                                        ),
+                                      ),
+                                    ),
                                     const SizedBox(width: 12),
                                     Text(
                                       'Bonus Collected!',

@@ -63,6 +63,11 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/Acceptable_Words.txt
+    - assets/bonuses_icons/3dicons-money-dynamic-color.png
+    - assets/bonuses_icons/3dicons-heart-dynamic-color.png
+    - assets/bonuses_icons/3dicons-fire-dynamic-color.png
+    - assets/bonuses_icons/3dicons-gift-box-dynamic-color.png
+    - assets/bonuses_icons/3dicons-dollar-dynamic-color.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
