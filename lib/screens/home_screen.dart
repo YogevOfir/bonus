@@ -31,59 +31,62 @@ class _HomeScreenState extends State<HomeScreen> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Center(
-          child: Card(
-            elevation: 16,
-            color: Colors.white.withOpacity(0.92),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.casino, color: Colors.deepPurple, size: 38),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Bonus',
-                        style: TextStyle(
-                          fontSize: 38,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepPurple[700],
-                          letterSpacing: 2,
-                          shadows: [
-                            Shadow(color: Colors.deepPurple.withOpacity(0.2), blurRadius: 8, offset: Offset(0, 3)),
-                          ],
+        child: Stack(
+          children: [
+            // Centered white container with menu buttons
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 160),
+                child: Card(
+                  elevation: 16,
+                  color: Colors.white.withOpacity(0.92),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+
+                        _buildMenuButton(
+                          context,
+                          icon: Icons.play_circle_fill,
+                          label: 'Start Game',
+                          color: Colors.deepPurple,
+                          onPressed: () {
+                            _showStartGameDialog(context);
+                          },
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        _buildMenuButton(
+                          context,
+                          icon: Icons.info_outline,
+                          label: 'Instructions',
+                          color: Colors.cyan[700]!,
+                          onPressed: () {
+                            _showInstructionsDialog(context);
+                          },
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 32),
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.play_circle_fill,
-                    label: 'Start Game',
-                    color: Colors.deepPurple,
-                    onPressed: () {
-                      _showStartGameDialog(context);
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  _buildMenuButton(
-                    context,
-                    icon: Icons.info_outline,
-                    label: 'Instructions',
-                    color: Colors.cyan[700]!,
-                    onPressed: () {
-                      _showInstructionsDialog(context);
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+            // Logo positioned at top center
+            Positioned(
+              top: 60,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/bonusLogo.png',
+                  height: 280,
+                  width: 280,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

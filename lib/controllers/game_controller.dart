@@ -170,6 +170,10 @@ class GameController extends ChangeNotifier {
     _roomID = roomID;
     if (isOnline) {
       _setupOnDisconnect();
+      // Immediately clear the player left flag to indicate presence
+      final db = FirebaseDatabase.instance.ref();
+      final playerKey = _localPlayerId == 1 ? 'player1Left' : 'player2Left';
+      db.child('rooms/$_roomID/$playerKey').set(false);
       _listenToRemoteChanges();
     }
   }

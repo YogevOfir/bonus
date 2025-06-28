@@ -72,7 +72,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
               onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                // Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: Text('OK'),
             ),
@@ -188,10 +188,14 @@ class _GameScreenState extends State<GameScreen> {
                             Icon(Icons.info_outline,
                                 color: Colors.deepPurple, size: 28),
                             SizedBox(width: 8),
-                            Text('Invalid Move',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.deepPurple)),
+                            Text(
+                              msg == "Turn skipped!" || msg == "Time's up! Your turn was skipped." || msg == "The other player skipped their turn."
+                                  ? 'Turn Skipped'
+                                  : 'Invalid Move',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple),
+                            ),
                           ],
                         ),
                         content: Padding(

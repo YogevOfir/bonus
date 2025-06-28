@@ -68,6 +68,7 @@ flutter:
     - assets/bonuses_icons/3dicons-fire-dynamic-color.png
     - assets/bonuses_icons/3dicons-gift-box-dynamic-color.png
     - assets/bonuses_icons/3dicons-dollar-dynamic-color.png
+    - assets/bonusLogo.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
