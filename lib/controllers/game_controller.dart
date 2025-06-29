@@ -55,6 +55,10 @@ class GameController extends ChangeNotifier {
   bool _player1ExtraMove = false;
   bool _player2ExtraMove = false;
 
+  // Debounce mechanism to prevent too frequent updates
+  Timer? _updateDebounceTimer;
+  bool _pendingUpdate = false;
+
   void Function(String)? onError;
   void Function()? onPlayerLeft;
   void Function()? onTurnPassedDueToTimeout;
@@ -358,11 +362,20 @@ class GameController extends ChangeNotifier {
     // If the first player passes/skips their first turn, mark firstMoveDone
     if (!_firstMoveDone && _currentPlayer == _firstPlayerId) {
       _firstMoveDone = true;
-      _updateRepository(); // Ensure sync immediately
     }
+    
+    // Clear any placed letters that might still be on the board
+    _returnPlacedLettersToHand();
+    
+    // Switch to the other player
     _currentPlayer = (_currentPlayer == 1) ? 2 : 1;
+    
+    // Start the timer for the new turn
     _startTurnTimer();
-    _updateRepository();
+    
+    // Update the repository immediately for critical turn changes
+    _updateRepositoryImmediate();
+    
     notifyListeners();
   }
 
@@ -431,85 +444,141 @@ class GameController extends ChangeNotifier {
 
   Future<void> _updateRepository() async {
     if (_roomID == null) return;
-    await _repository.updateGameState(
-      _roomID!,
-      player1Score: _player1Score,
-      player2Score: _player2Score,
-      currentPlayer: _currentPlayer.toString(),
-      boardState: _board,
-      player1Hand: _player1Hand,
-      player2Hand: _player2Hand,
-      letterPool: _letterPool,
-      turnStartTimestamp: _turnStartTimestamp,
-      players: {'player1': _player1Name, 'player2': _player2Name},
-      player1DoubleTurns: _player1DoubleTurns,
-      player2DoubleTurns: _player2DoubleTurns,
-      player1QuadTurns: _player1QuadTurns,
-      player2QuadTurns: _player2QuadTurns,
-      firstMoveDone: _firstMoveDone,
-    );
+    
+    // Cancel any pending update
+    _updateDebounceTimer?.cancel();
+    
+    // Set a flag to indicate we have a pending update
+    _pendingUpdate = true;
+    
+    // Debounce the update to prevent too frequent database calls
+    _updateDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      if (_pendingUpdate) {
+        _pendingUpdate = false;
+        await _repository.updateGameState(
+          _roomID!,
+          player1Score: _player1Score,
+          player2Score: _player2Score,
+          currentPlayer: _currentPlayer.toString(),
+          boardState: _board,
+          player1Hand: _player1Hand,
+          player2Hand: _player2Hand,
+          letterPool: _letterPool,
+          turnStartTimestamp: _turnStartTimestamp,
+          players: {'player1': _player1Name, 'player2': _player2Name},
+          player1DoubleTurns: _player1DoubleTurns,
+          player2DoubleTurns: _player2DoubleTurns,
+          player1QuadTurns: _player1QuadTurns,
+          player2QuadTurns: _player2QuadTurns,
+          firstMoveDone: _firstMoveDone,
+        );
+      }
+    });
   }
 
   bool _skipDialogShown = false;
 
   void _syncFromRemote(Map<dynamic, dynamic> data) async {
-    if (data['player1Score'] != null) _player1Score = data['player1Score'];
-    if (data['player2Score'] != null) _player2Score = data['player2Score'];
-    if (data['turn'] != null)
-      _currentPlayer = data['turn'] == 'player1' ? 1 : 2;
-
-    if (data['players'] != null) {
-      _player1Name = data['players']['player1'] ?? 'Player 1';
-      _player2Name = data['players']['player2'] ?? 'Player 2';
+    // Prevent infinite loops by checking if data is actually different
+    bool hasChanges = false;
+    
+    if (data['player1Score'] != null && data['player1Score'] != _player1Score) {
+      _player1Score = data['player1Score'];
+      hasChanges = true;
+    }
+    if (data['player2Score'] != null && data['player2Score'] != _player2Score) {
+      _player2Score = data['player2Score'];
+      hasChanges = true;
+    }
+    if (data['turn'] != null) {
+      int newCurrentPlayer = data['turn'] == 'player1' ? 1 : 2;
+      if (newCurrentPlayer != _currentPlayer) {
+        _currentPlayer = newCurrentPlayer;
+        hasChanges = true;
+      }
     }
 
-    if (data['player1DoubleTurns'] != null)
+    if (data['players'] != null) {
+      String newPlayer1Name = data['players']['player1'] ?? 'Player 1';
+      String newPlayer2Name = data['players']['player2'] ?? 'Player 2';
+      if (newPlayer1Name != _player1Name || newPlayer2Name != _player2Name) {
+        _player1Name = newPlayer1Name;
+        _player2Name = newPlayer2Name;
+        hasChanges = true;
+      }
+    }
+
+    if (data['player1DoubleTurns'] != null && data['player1DoubleTurns'] != _player1DoubleTurns) {
       _player1DoubleTurns = data['player1DoubleTurns'];
-    if (data['player2DoubleTurns'] != null)
+      hasChanges = true;
+    }
+    if (data['player2DoubleTurns'] != null && data['player2DoubleTurns'] != _player2DoubleTurns) {
       _player2DoubleTurns = data['player2DoubleTurns'];
-    if (data['player1QuadTurns'] != null)
+      hasChanges = true;
+    }
+    if (data['player1QuadTurns'] != null && data['player1QuadTurns'] != _player1QuadTurns) {
       _player1QuadTurns = data['player1QuadTurns'];
-    if (data['player2QuadTurns'] != null)
+      hasChanges = true;
+    }
+    if (data['player2QuadTurns'] != null && data['player2QuadTurns'] != _player2QuadTurns) {
       _player2QuadTurns = data['player2QuadTurns'];
+      hasChanges = true;
+    }
 
     if (data['boardState'] != null) {
       final boardFromDb = List<dynamic>.from(data['boardState']);
       final newBonusIndices = <int>[];
       if (_board.length == boardFromDb.length) {
+        bool boardChanged = false;
         _board = List.generate(boardFromDb.length, (index) {
           final val = boardFromDb[index];
           if (val == null || val.isEmpty || !(val is Map)) return BoardTile();
           final tile = BoardTile.fromJson(Map<String, dynamic>.from(val));
           if (tile.bonus != null) newBonusIndices.add(index);
+          // Check if this tile is different from current
+          if (index < _board.length && _board[index]?.toJson() != tile.toJson()) {
+            boardChanged = true;
+          }
           return tile;
         });
         _bonusIndices = newBonusIndices;
+        if (boardChanged) hasChanges = true;
       }
     }
 
     if (data['player1Hand'] != null) {
       final handFromDb = List<dynamic>.from(data['player1Hand']);
-      _player1Hand.clear();
-      _player1Hand
-          .addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      final newHand = handFromDb.map((s) => Letter.fromString(s.toString())).toList();
+      if (!_listsEqual(_player1Hand, newHand)) {
+        _player1Hand.clear();
+        _player1Hand.addAll(newHand);
+        hasChanges = true;
+      }
     }
 
     if (data['player2Hand'] != null) {
       final handFromDb = List<dynamic>.from(data['player2Hand']);
-      _player2Hand.clear();
-      _player2Hand
-          .addAll(handFromDb.map((s) => Letter.fromString(s.toString())));
+      final newHand = handFromDb.map((s) => Letter.fromString(s.toString())).toList();
+      if (!_listsEqual(_player2Hand, newHand)) {
+        _player2Hand.clear();
+        _player2Hand.addAll(newHand);
+        hasChanges = true;
+      }
     }
 
     if (data['letterPool'] != null) {
       final poolFromDb = List<dynamic>.from(data['letterPool']);
-      _letterPool.clear();
-      _letterPool
-          .addAll(poolFromDb.map((s) => Letter.fromString(s.toString())));
+      final newPool = poolFromDb.map((s) => Letter.fromString(s.toString())).toList();
+      if (!_listsEqual(_letterPool, newPool)) {
+        _letterPool.clear();
+        _letterPool.addAll(newPool);
+        hasChanges = true;
+      }
     }
 
-    if (data['turnStartTimestamp'] != null) {
+    if (data['turnStartTimestamp'] != null && data['turnStartTimestamp'] != _turnStartTimestamp) {
       _turnStartTimestamp = data['turnStartTimestamp'];
+      hasChanges = true;
       if (_repository is FirebaseGameRepository) {
         final serverNow =
             await (_repository as FirebaseGameRepository).fetchServerTime();
@@ -522,33 +591,43 @@ class GameController extends ChangeNotifier {
       }
     }
 
-    if (data['firstMoveDone'] != null) {
+    if (data['firstMoveDone'] != null && data['firstMoveDone'] != _firstMoveDone) {
       _firstMoveDone = data['firstMoveDone'] == true;
+      hasChanges = true;
     }
 
-    if (data['firstPlayerId'] != null) {
+    if (data['firstPlayerId'] != null && data['firstPlayerId'] != _firstPlayerId) {
       _firstPlayerId = data['firstPlayerId'];
+      hasChanges = true;
     }
 
     if (!_isSynced) {
       _isSynced = true;
+      hasChanges = true;
     }
 
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      notifyListeners();
-      if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
-        skipTurn(dueToTimeout: true);
-      }
-    });
-
+    // Handle player left notifications
     if (_localPlayerId == 1 && data['player2Left'] == true) {
       if (onPlayerLeft != null) onPlayerLeft!();
     } else if (_localPlayerId == 2 && data['player1Left'] == true) {
       if (onPlayerLeft != null) onPlayerLeft!();
     }
 
-    notifyListeners();
+    // Handle skip turn notifications - only show once per skip
+    if (isOnline &&
+        data['lastSkipped'] != null &&
+        data['lastSkipped'] != _localPlayerId &&
+        data['lastSkipped'] != 0) {
+      // Show alert only if the other player skipped and we haven't shown it yet
+      if (!_skipDialogShown && onError != null) {
+        _skipDialogShown = true;
+        onError!("The other player skipped their turn.");
+        // Clear the skip notification after showing the message
+        await _clearSkipNotification();
+      }
+    } else if (data['lastSkipped'] == null || data['lastSkipped'] == 0) {
+      _skipDialogShown = false;
+    }
 
     // Only start the timer and set turnStartTimestamp when both players are present and timer hasn't started
     if (isOnline &&
@@ -563,22 +642,26 @@ class GameController extends ChangeNotifier {
       // _turnStartTimestamp will be set on next sync
     }
 
-    // Multiplayer skip notification
-    if (isOnline &&
-        data['lastSkipped'] != null &&
-        data['lastSkipped'] != _localPlayerId) {
-      // Show alert only if the other player skipped
-      if (!_skipDialogShown && onError != null) {
-        _skipDialogShown = true;
-        onError!("The other player skipped their turn.");
-      }
-      // Clear the skip notification so it doesn't repeat
-      if (_roomID != null) {
-        await _repository.updateGameState(_roomID!, lastSkipped: null);
-      }
-    } else {
-      _skipDialogShown = false;
+    // Only notify listeners if there were actual changes
+    if (hasChanges) {
+      _timer?.cancel();
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        notifyListeners();
+        if (remainingTime <= 0 && _localPlayerId == _currentPlayer) {
+          skipTurn(dueToTimeout: true);
+        }
+      });
+      notifyListeners();
     }
+  }
+
+  // Helper method to compare lists of letters
+  bool _listsEqual(List<Letter> list1, List<Letter> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i].toString() != list2[i].toString()) return false;
+    }
+    return true;
   }
 
   void _setupOnDisconnect() {
@@ -810,6 +893,7 @@ class GameController extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _updateDebounceTimer?.cancel();
     // If the repo is local, it might have a stream controller to close
     if (_repository is LocalGameRepository) {
       (_repository as LocalGameRepository).dispose();
@@ -837,15 +921,27 @@ class GameController extends ChangeNotifier {
     _placedThisTurn.clear();
   }
 
+  // Clear skip notification to prevent infinite loops
+  Future<void> _clearSkipNotification() async {
+    if (isOnline && _roomID != null) {
+      await _repository.updateGameState(_roomID!, lastSkipped: 0);
+    }
+  }
+
   void skipTurn({bool dueToTimeout = false}) async {
     if (isOnline && _localPlayerId != _currentPlayer) {
       onError?.call("It's not your turn!");
       return;
     }
+    
+    // Return placed letters to hand before skipping
+    _returnPlacedLettersToHand();
+    
     // Multiplayer: notify the other player
     if (isOnline && _roomID != null) {
       await _repository.updateGameState(_roomID!, lastSkipped: _localPlayerId);
     }
+    
     // Only show dialog for the local player whose turn it is
     if (!isOnline || _localPlayerId == _currentPlayer) {
       if (onError != null) {
@@ -856,7 +952,34 @@ class GameController extends ChangeNotifier {
         }
       }
     }
-    _returnPlacedLettersToHand();
+    
     _passTurn();
+  }
+
+  // Immediate update for critical changes that shouldn't be debounced
+  Future<void> _updateRepositoryImmediate() async {
+    if (_roomID == null) return;
+    
+    // Cancel any pending debounced update
+    _updateDebounceTimer?.cancel();
+    _pendingUpdate = false;
+    
+    await _repository.updateGameState(
+      _roomID!,
+      player1Score: _player1Score,
+      player2Score: _player2Score,
+      currentPlayer: _currentPlayer.toString(),
+      boardState: _board,
+      player1Hand: _player1Hand,
+      player2Hand: _player2Hand,
+      letterPool: _letterPool,
+      turnStartTimestamp: _turnStartTimestamp,
+      players: {'player1': _player1Name, 'player2': _player2Name},
+      player1DoubleTurns: _player1DoubleTurns,
+      player2DoubleTurns: _player2DoubleTurns,
+      player1QuadTurns: _player1QuadTurns,
+      player2QuadTurns: _player2QuadTurns,
+      firstMoveDone: _firstMoveDone,
+    );
   }
 }

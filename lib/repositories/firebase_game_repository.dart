@@ -5,9 +5,11 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:bonus/models/board_tile.dart';
 import 'package:bonus/models/letter.dart';
 import 'package:bonus/repositories/game_repository.dart';
+import 'package:bonus/services/auth_service.dart';
 
 class FirebaseGameRepository implements GameRepository {
   final FirebaseDatabase _database = FirebaseDatabase.instance;
+  final AuthService _authService = AuthService();
 
   @override
   Stream<Map<String, dynamic>> getGameStateStream(String roomID) {
@@ -40,6 +42,12 @@ class FirebaseGameRepository implements GameRepository {
     bool? firstMoveDone,
     int? lastSkipped,
   }) async {
+    // Ensure user is authenticated before making database calls
+    final userId = await _authService.getUserId();
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
     final Map<String, dynamic> updates = {};
     if (player1Score != null) updates['player1Score'] = player1Score;
     if (player2Score != null) updates['player2Score'] = player2Score;
@@ -57,6 +65,11 @@ class FirebaseGameRepository implements GameRepository {
     if (player2QuadTurns != null) updates['player2QuadTurns'] = player2QuadTurns;
     if (firstMoveDone != null) updates['firstMoveDone'] = firstMoveDone;
     if (lastSkipped != null) updates['lastSkipped'] = lastSkipped;
+    
+    // Add user ID to track who made the update
+    updates['lastUpdatedBy'] = userId;
+    updates['lastUpdatedAt'] = ServerValue.timestamp;
+    
     if (updates.isNotEmpty) {
       await _database.ref('rooms/$roomID').update(updates);
     }
@@ -64,24 +77,56 @@ class FirebaseGameRepository implements GameRepository {
 
   @override
   Future<String> createRoom(String player1Name) async {
+    // Ensure user is authenticated before creating room
+    final userId = await _authService.getUserId();
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
     final roomID = (100000 + Random().nextInt(900000)).toString();
     await _database.ref('rooms/$roomID/players/player1').set(player1Name);
+    await _database.ref('rooms/$roomID/createdBy').set(userId);
+    await _database.ref('rooms/$roomID/createdAt').set(ServerValue.timestamp);
     return roomID;
   }
 
   @override
   Future<void> createNewGame(String roomID, Map<String, dynamic> initialGameState) async {
+    // Ensure user is authenticated before creating game
+    final userId = await _authService.getUserId();
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    initialGameState['createdBy'] = userId;
+    initialGameState['createdAt'] = ServerValue.timestamp;
     await _database.ref('rooms/$roomID').set(initialGameState);
   }
 
   @override
   Future<void> joinRoom(String roomID, String player2Name) async {
+    // Ensure user is authenticated before joining room
+    final userId = await _authService.getUserId();
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
     await _database.ref('rooms/$roomID/players/player2').set(player2Name);
+    await _database.ref('rooms/$roomID/joinedBy').set(userId);
+    await _database.ref('rooms/$roomID/joinedAt').set(ServerValue.timestamp);
   }
 
   @override
   Future<void> updatePlayerName(String roomID, String playerID, String name) async {
+    // Ensure user is authenticated before updating player name
+    final userId = await _authService.getUserId();
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
     await _database.ref('rooms/$roomID/players/$playerID').set(name);
+    await _database.ref('rooms/$roomID/lastUpdatedBy').set(userId);
+    await _database.ref('rooms/$roomID/lastUpdatedAt').set(ServerValue.timestamp);
   }
 
   @override

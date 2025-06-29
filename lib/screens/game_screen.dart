@@ -907,72 +907,152 @@ class _GameScreenState extends State<GameScreen> {
                             await showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                backgroundColor: Colors.white.withOpacity(0.95),
+                                backgroundColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(24),
                                 ),
-                                title: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: bonus.color.withOpacity(0.18),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: bonus.color.withOpacity(0.5), width: 2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.brown.withOpacity(0.08),
-                                            blurRadius: 4,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
+                                content: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        bonus.color.withOpacity(0.95),
+                                        bonus.color.withOpacity(0.8),
+                                        bonus.color.withOpacity(0.7),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(24),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: bonus.color.withOpacity(0.4),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                        spreadRadius: 2,
                                       ),
-                                      child: Center(
-                                        child: Image.asset(
-                                          bonus.assetPath,
-                                          width: 32,
-                                          height: 32,
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24.0),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // Header with icon and title
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              width: 48,
+                                              height: 48,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white.withOpacity(0.25),
+                                                borderRadius: BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color: Colors.white.withOpacity(0.3),
+                                                  width: 2,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.1),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Center(
+                                                child: Image.asset(
+                                                  bonus.assetPath,
+                                                  width: 32,
+                                                  height: 32,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Text(
+                                                'Bonus Collected!',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 24,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: Colors.black.withOpacity(0.3),
+                                                      offset: const Offset(0, 2),
+                                                      blurRadius: 4,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
+                                        const SizedBox(height: 20),
+                                        
+                                        // Bonus description
+                                        Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.2),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _bonusDescription(bonus),
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.black26,
+                                                  offset: Offset(0, 1),
+                                                  blurRadius: 2,
+                                                ),
+                                              ],
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        
+                                        // OK button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 48,
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white.withOpacity(0.25),
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(16),
+                                                side: BorderSide(
+                                                  color: Colors.white.withOpacity(0.3),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              textStyle: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text('OK'),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Bonus Collected!',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 22,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                content: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Text(
-                                    _bonusDescription(bonus),
-                                    style: const TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w500),
                                   ),
                                 ),
-                                actions: [
-                                  TextButton(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      backgroundColor: Colors.black26,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                      textStyle: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: const Text('OK'),
-                                  ),
-                                ],
                               ),
                             );
                           }

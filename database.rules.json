@@ -1,0 +1,151 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['players'])",
+        
+        "players": {
+          ".validate": "newData.hasChildren(['player1'])",
+          "player1": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+          },
+          "player2": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+          }
+        },
+        
+        "player1Score": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "player2Score": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        
+        "turn": {
+          ".validate": "newData.isString() && (newData.val() == 'player1' || newData.val() == 'player2')"
+        },
+        
+        "boardState": {
+          ".validate": "newData.hasChildren()"
+        },
+        
+        "player1Hand": {
+          ".validate": "newData.hasChildren()"
+        },
+        "player2Hand": {
+          ".validate": "newData.hasChildren()"
+        },
+        
+        "letterPool": {
+          ".validate": "newData.hasChildren()"
+        },
+        
+        "turnStartTimestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        
+        "firstWordPlaced": {
+          ".validate": "newData.isBoolean()"
+        },
+        "firstMoveDone": {
+          ".validate": "newData.isBoolean()"
+        },
+        
+        "player1DoubleTurns": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        "player2DoubleTurns": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        "player1QuadTurns": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+        },
+        "player2QuadTurns": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
+        },
+        
+        "lastSkipped": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2"
+        },
+        
+        "player1Left": {
+          ".validate": "newData.isBoolean()"
+        },
+        "player2Left": {
+          ".validate": "newData.isBoolean()"
+        },
+        
+        "createdBy": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "joinedBy": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "joinedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "lastUpdatedBy": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        },
+        "lastUpdatedAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "firstPlayerId": {
+          ".validate": "newData.isNumber() && (newData.val() == 1 || newData.val() == 2)"
+        }
+      }
+    },
+    
+    "serverTimeForSync": {
+      "$pushId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.isNumber() && newData.val() > 0"
+      }
+    },
+    
+    "userStats": {
+      "$userId": {
+        ".read": "auth != null && auth.uid == $userId",
+        ".write": "auth != null && auth.uid == $userId",
+        ".validate": "newData.hasChildren(['gamesPlayed', 'totalScore', 'wins'])",
+        
+        "gamesPlayed": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "totalScore": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "wins": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "lastPlayed": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        }
+      }
+    },
+    
+    "activeRooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['createdAt', 'playerCount'])",
+        
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "playerCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 2"
+        },
+        "createdBy": {
+          ".validate": "newData.isString() && newData.val() == auth.uid"
+        }
+      }
+    }
+  }
+} 
