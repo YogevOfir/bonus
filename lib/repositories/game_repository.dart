@@ -21,6 +21,8 @@ abstract class GameRepository {
     int? player2QuadTurns,
     bool? firstMoveDone,
     int? lastSkipped,
+    int? player1Replacements,
+    int? player2Replacements,
   });
 
   Future<String> createRoom(String player1Name);

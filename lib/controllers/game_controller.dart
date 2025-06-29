@@ -55,6 +55,10 @@ class GameController extends ChangeNotifier {
   bool _player1ExtraMove = false;
   bool _player2ExtraMove = false;
 
+  // Letter replacement tracking
+  int _player1Replacements = 0;
+  int _player2Replacements = 0;
+
   // Debounce mechanism to prevent too frequent updates
   Timer? _updateDebounceTimer;
   bool _pendingUpdate = false;
@@ -92,6 +96,17 @@ class GameController extends ChangeNotifier {
   int get player2DoubleTurns => _player2DoubleTurns;
   int get player2QuadTurns => _player2QuadTurns;
   bool get firstMoveDone => _firstMoveDone;
+
+  // Get replacement cost for current player
+  int get replacementCost {
+    int replacements = _currentPlayer == 1 ? _player1Replacements : _player2Replacements;
+    return 25 * (1 << replacements); // 25, 50, 100, 200, 400, etc.
+  }
+
+  // Get replacement count for current player
+  int get replacementCount {
+    return _currentPlayer == 1 ? _player1Replacements : _player2Replacements;
+  }
 
   GameController({GameRepository? repository}) {
     _validationService = WordValidationService();
@@ -471,6 +486,8 @@ class GameController extends ChangeNotifier {
           player1QuadTurns: _player1QuadTurns,
           player2QuadTurns: _player2QuadTurns,
           firstMoveDone: _firstMoveDone,
+          player1Replacements: _player1Replacements,
+          player2Replacements: _player2Replacements,
         );
       }
     });
@@ -522,6 +539,15 @@ class GameController extends ChangeNotifier {
     }
     if (data['player2QuadTurns'] != null && data['player2QuadTurns'] != _player2QuadTurns) {
       _player2QuadTurns = data['player2QuadTurns'];
+      hasChanges = true;
+    }
+
+    if (data['player1Replacements'] != null && data['player1Replacements'] != _player1Replacements) {
+      _player1Replacements = data['player1Replacements'];
+      hasChanges = true;
+    }
+    if (data['player2Replacements'] != null && data['player2Replacements'] != _player2Replacements) {
+      _player2Replacements = data['player2Replacements'];
       hasChanges = true;
     }
 
@@ -954,6 +980,83 @@ class GameController extends ChangeNotifier {
     }
     
     _passTurn();
+  }
+
+  // Replace a letter in the current player's hand with a random letter from the pool
+  bool replaceLetterInHand(int letterIndex) {
+    print('replaceLetterInHand called with index: $letterIndex'); // Debug
+    
+    if (isOnline && _localPlayerId != _currentPlayer) {
+      print('Not your turn!'); // Debug
+      onError?.call("It's not your turn!");
+      return false;
+    }
+
+    // Calculate the cost for this replacement
+    int cost = replacementCost;
+    print('Replacement cost: $cost'); // Debug
+
+    // Check if player has enough score
+    int currentScore = _currentPlayer == 1 ? _player1Score : _player2Score;
+    print('Current score: $currentScore'); // Debug
+    
+    if (currentScore < cost) {
+      print('Not enough points! Need $cost, have $currentScore'); // Debug
+      onError?.call("You need at least $cost points to replace a letter!");
+      return false;
+    }
+
+    // Get current player's hand
+    List<Letter> currentHand = _currentPlayer == 1 ? _player1Hand : _player2Hand;
+    print('Current hand size: ${currentHand.length}'); // Debug
+    
+    // Check if index is valid
+    if (letterIndex < 0 || letterIndex >= currentHand.length) {
+      print('Invalid index!'); // Debug
+      onError?.call("Invalid letter index!");
+      return false;
+    }
+
+    // Check if letter pool has letters
+    if (_letterPool.isEmpty) {
+      print('Letter pool is empty!'); // Debug
+      onError?.call("No letters available in the pool!");
+      return false;
+    }
+
+    print('Replacing letter: ${currentHand[letterIndex].letter}'); // Debug
+
+    // Remove the letter from hand and add it back to the pool
+    Letter removedLetter = currentHand.removeAt(letterIndex);
+    _letterPool.add(removedLetter);
+    
+    // Shuffle the pool to randomize
+    _letterPool.shuffle();
+    
+    // Draw a new random letter
+    Letter newLetter = _letterPool.removeAt(0);
+    currentHand.add(newLetter);
+    
+    print('New letter: ${newLetter.letter}'); // Debug
+    
+    // Deduct the cost
+    if (_currentPlayer == 1) {
+      _player1Score -= cost;
+      _player1Replacements++;
+    } else {
+      _player2Score -= cost;
+      _player2Replacements++;
+    }
+    
+    print('Score after deduction: ${_currentPlayer == 1 ? _player1Score : _player2Score}'); // Debug
+    print('Next replacement will cost: ${replacementCost}'); // Debug
+    
+    // Update repository
+    _updateRepository();
+    notifyListeners();
+    
+    print('Letter replacement successful!'); // Debug
+    return true;
   }
 
   // Immediate update for critical changes that shouldn't be debounced

@@ -41,6 +41,8 @@ class FirebaseGameRepository implements GameRepository {
     int? player2QuadTurns,
     bool? firstMoveDone,
     int? lastSkipped,
+    int? player1Replacements,
+    int? player2Replacements,
   }) async {
     // Ensure user is authenticated before making database calls
     final userId = await _authService.getUserId();
@@ -65,6 +67,8 @@ class FirebaseGameRepository implements GameRepository {
     if (player2QuadTurns != null) updates['player2QuadTurns'] = player2QuadTurns;
     if (firstMoveDone != null) updates['firstMoveDone'] = firstMoveDone;
     if (lastSkipped != null) updates['lastSkipped'] = lastSkipped;
+    if (player1Replacements != null) updates['player1Replacements'] = player1Replacements;
+    if (player2Replacements != null) updates['player2Replacements'] = player2Replacements;
     
     // Add user ID to track who made the update
     updates['lastUpdatedBy'] = userId;

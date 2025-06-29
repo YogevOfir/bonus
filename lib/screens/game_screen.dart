@@ -2,13 +2,11 @@ import 'package:bonus/controllers/game_controller.dart';
 import 'package:bonus/models/bonus_info.dart';
 import 'package:bonus/models/draggable_letter.dart';
 import 'package:bonus/models/letter.dart';
-import 'package:bonus/services/scoring/score_service.dart';
 import 'package:bonus/widgets/game_board.dart';
 import 'package:bonus/widgets/letter_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
-import 'dart:collection';
 
 class GameScreen extends StatefulWidget {
   final bool isAiGame;
@@ -718,6 +716,157 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  // Show dialog to select which letter to replace
+  void _showReplaceLetterDialog(BuildContext context, GameController gameController) {
+    List<Letter> currentHand = gameController.currentPlayer == 1 
+        ? gameController.player1Hand 
+        : gameController.player2Hand;
+    
+    int currentScore = gameController.currentPlayer == 1 
+        ? gameController.player1Score 
+        : gameController.player2Score;
+
+    int replacementCost = gameController.replacementCost;
+    int replacementCount = gameController.replacementCount;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.swap_horiz, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Text('Replace Letter', 
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Select a letter to replace',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Cost: $replacementCost points (${replacementCount + 1}${_getOrdinalSuffix(replacementCount + 1)} replacement)',
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.bold
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Your score: $currentScore',
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: currentScore >= replacementCost ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold
+                ),
+              ),
+              SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(currentHand.length, (index) {
+                  final letter = currentHand[index];
+                  final canAfford = currentScore >= replacementCost;
+                  
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: canAfford ? () {
+                        print('Letter tapped: ${letter.letter} at index $index'); // Debug
+                        Navigator.of(dialogContext).pop();
+                        final success = gameController.replaceLetterInHand(index);
+                        print('Replace result: $success'); // Debug
+                        if (success) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Letter replaced! -$replacementCost points'),
+                              backgroundColor: Colors.orange,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } : () {
+                        print('Cannot afford replacement. Score: $currentScore, Cost: $replacementCost'); // Debug
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('You need at least $replacementCost points to replace a letter!'),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: canAfford 
+                              ? Colors.orange.withOpacity(0.1)
+                              : Colors.grey.withOpacity(0.1),
+                          border: Border.all(
+                            color: canAfford 
+                                ? Colors.orange 
+                                : Colors.grey,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            letter.letter,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: canAfford 
+                                  ? Colors.orange[800] 
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.grey,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                textStyle: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Helper method to get ordinal suffix (1st, 2nd, 3rd, etc.)
+  String _getOrdinalSuffix(int number) {
+    if (number >= 11 && number <= 13) return 'th';
+    switch (number % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
+
   Widget _buildActionButtons(GameController gameController, bool isMyTurn,
       BuildContext context, bool isSmallScreen) {
     return SizedBox(
@@ -1163,6 +1312,37 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
+          // Replace Letter Button (Left side)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: SizedBox(
+              width: 52,
+              height: 44,
+              child: IconButton(
+                icon: const Icon(Icons.swap_horiz, color: Colors.white, size: 24),
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all<Color>(
+                    isMyTurn ? Colors.orange : Colors.grey
+                  ),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  minimumSize: MaterialStateProperty.all<Size>(const Size(52, 44)),
+                ),
+                tooltip: 'Replace Letter (${gameController.replacementCost} points)',
+                onPressed: isMyTurn
+                    ? () {
+                        _showReplaceLetterDialog(context, gameController);
+                      }
+                    : null,
+              ),
+            ),
+          ),
+          // Skip Turn Button (Right side)
           Positioned(
             right: 0,
             top: 0,

@@ -66,6 +66,13 @@
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5"
         },
         
+        "player1Replacements": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        "player2Replacements": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10"
+        },
+        
         "lastSkipped": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 2"
         },

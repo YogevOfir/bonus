@@ -33,6 +33,8 @@ class LocalGameRepository implements GameRepository {
     int? player2QuadTurns,
     bool? firstMoveDone,
     int? lastSkipped,
+    int? player1Replacements,
+    int? player2Replacements,
   }) async {
     if (player1Score != null) _gameState['player1Score'] = player1Score;
     if (player2Score != null) _gameState['player2Score'] = player2Score;
@@ -50,6 +52,8 @@ class LocalGameRepository implements GameRepository {
     if (player2QuadTurns != null) _gameState['player2QuadTurns'] = player2QuadTurns;
     if (firstMoveDone != null) _gameState['firstMoveDone'] = firstMoveDone;
     if (lastSkipped != null) _gameState['lastSkipped'] = lastSkipped;
+    if (player1Replacements != null) _gameState['player1Replacements'] = player1Replacements;
+    if (player2Replacements != null) _gameState['player2Replacements'] = player2Replacements;
     _controller.add(_gameState);
   }
 
