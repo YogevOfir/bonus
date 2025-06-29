@@ -59,6 +59,10 @@ class GameController extends ChangeNotifier {
   int _player1Replacements = 0;
   int _player2Replacements = 0;
 
+  // Turn results tracking
+  Map<String, dynamic>? _lastTurnResults;
+  bool _showTurnResults = false;
+
   // Debounce mechanism to prevent too frequent updates
   Timer? _updateDebounceTimer;
   bool _pendingUpdate = false;
@@ -66,6 +70,7 @@ class GameController extends ChangeNotifier {
   void Function(String)? onError;
   void Function()? onPlayerLeft;
   void Function()? onTurnPassedDueToTimeout;
+  void Function(Map<String, dynamic>)? onShowTurnResults;
 
   // Getters
   List<Letter> get player1Hand => _player1Hand;
@@ -81,11 +86,11 @@ class GameController extends ChangeNotifier {
   bool get wordsLoaded => _validationService.wordsLoaded;
   List<Letter> get letterPool => _letterPool;
   int get remainingTime {
-    if (_turnStartTimestamp == null) return 120;
+    if (_turnStartTimestamp == null) return 125;
     // In local games, offset is 0. In online games, it's calculated.
     final now = DateTime.now().millisecondsSinceEpoch - _serverTimeOffset;
     final elapsed = ((now - _turnStartTimestamp!) / 1000).floor();
-    return (120 - elapsed).clamp(0, 120);
+    return (125 - elapsed).clamp(0, 125);
   }
 
   List<int> get placedThisTurn => _placedThisTurn.toList();
@@ -106,6 +111,32 @@ class GameController extends ChangeNotifier {
   // Get replacement count for current player
   int get replacementCount {
     return _currentPlayer == 1 ? _player1Replacements : _player2Replacements;
+  }
+
+  // Turn results getters
+  Map<String, dynamic>? get lastTurnResults => _lastTurnResults;
+  bool get showTurnResults => _showTurnResults;
+
+  // Helper method to calculate word score
+  int _wordScore(Map<String, dynamic> wordData) {
+    try {
+      int score = 0;
+      final indices = wordData['indices'] as List<int>?;
+      if (indices != null) {
+        for (final idx in indices) {
+          if (idx >= 0 && idx < _board.length) {
+            final tile = _board[idx];
+            if (tile != null && tile.letter != null) {
+              score += tile.letter!.isWildcard ? 0 : tile.letter!.score;
+            }
+          }
+        }
+      }
+      return score;
+    } catch (e) {
+      print('Error calculating word score: $e');
+      return 0;
+    }
   }
 
   GameController({GameRepository? repository}) {
@@ -234,7 +265,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> endTurn(
-      {bool skipValidation = false, bool fromTimeout = false}) async {
+      {bool skipValidation = false, bool fromTimeout = false, List<String>? acceptedInvalidWords}) async {
     if (isOnline && _localPlayerId != _currentPlayer) {
       onError?.call("It's not your turn!");
       return;
@@ -289,6 +320,56 @@ class GameController extends ChangeNotifier {
       activeQuadTurns:
           _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
     );
+
+    // Get words created this turn
+    final wordList = _scoreService.extractWordsForPlacedTilesWithBonuses(
+      board: _board,
+      placedThisTurn: _placedThisTurn,
+    );
+
+    print('Debug: Word list length: ${wordList.length}');
+    print('Debug: Score result: ${scoreResult.score}');
+
+    try {
+      // Store turn results for both players to see
+      _lastTurnResults = {
+        'playerId': _currentPlayer,
+        'playerName': _currentPlayer == 1 ? _player1Name : _player2Name,
+        'words': wordList.map((wordData) {
+          try {
+            final word = wordData['word'] as String;
+            final isAcceptedInvalid = acceptedInvalidWords?.contains(word) ?? false;
+            final isActuallyValid = _validationService.isValidWord(word) || isAcceptedInvalid;
+            
+            return {
+              'word': word,
+              'isValid': isActuallyValid,
+              'score': _wordScore(wordData),
+              'wasAccepted': isAcceptedInvalid,
+            };
+          } catch (e) {
+            print('Error processing word data: $e');
+            return {
+              'word': wordData['word'] ?? 'ERROR',
+              'isValid': false,
+              'score': 0,
+              'wasAccepted': false,
+            };
+          }
+        }).toList(),
+        'totalScore': scoreResult.score,
+        'baseScore': scoreResult.score,
+        'multiplier': 1,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      print('Debug: Turn results created successfully');
+      
+      // Trigger callback to show turn results to both players
+      onShowTurnResults?.call(_lastTurnResults!);
+    } catch (e) {
+      print('Error creating turn results: $e');
+    }
 
     // Store bonuses gained this turn
     int gainedDouble = scoreResult.futureDoubleTurnsGained;
@@ -457,42 +538,6 @@ class GameController extends ChangeNotifier {
     });
   }
 
-  Future<void> _updateRepository() async {
-    if (_roomID == null) return;
-    
-    // Cancel any pending update
-    _updateDebounceTimer?.cancel();
-    
-    // Set a flag to indicate we have a pending update
-    _pendingUpdate = true;
-    
-    // Debounce the update to prevent too frequent database calls
-    _updateDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      if (_pendingUpdate) {
-        _pendingUpdate = false;
-        await _repository.updateGameState(
-          _roomID!,
-          player1Score: _player1Score,
-          player2Score: _player2Score,
-          currentPlayer: _currentPlayer.toString(),
-          boardState: _board,
-          player1Hand: _player1Hand,
-          player2Hand: _player2Hand,
-          letterPool: _letterPool,
-          turnStartTimestamp: _turnStartTimestamp,
-          players: {'player1': _player1Name, 'player2': _player2Name},
-          player1DoubleTurns: _player1DoubleTurns,
-          player2DoubleTurns: _player2DoubleTurns,
-          player1QuadTurns: _player1QuadTurns,
-          player2QuadTurns: _player2QuadTurns,
-          firstMoveDone: _firstMoveDone,
-          player1Replacements: _player1Replacements,
-          player2Replacements: _player2Replacements,
-        );
-      }
-    });
-  }
-
   bool _skipDialogShown = false;
 
   void _syncFromRemote(Map<dynamic, dynamic> data) async {
@@ -576,7 +621,7 @@ class GameController extends ChangeNotifier {
       final handFromDb = List<dynamic>.from(data['player1Hand']);
       final newHand = handFromDb.map((s) => Letter.fromString(s.toString())).toList();
       if (!_listsEqual(_player1Hand, newHand)) {
-        _player1Hand.clear();
+      _player1Hand.clear();
         _player1Hand.addAll(newHand);
         hasChanges = true;
       }
@@ -586,7 +631,7 @@ class GameController extends ChangeNotifier {
       final handFromDb = List<dynamic>.from(data['player2Hand']);
       final newHand = handFromDb.map((s) => Letter.fromString(s.toString())).toList();
       if (!_listsEqual(_player2Hand, newHand)) {
-        _player2Hand.clear();
+      _player2Hand.clear();
         _player2Hand.addAll(newHand);
         hasChanges = true;
       }
@@ -596,7 +641,7 @@ class GameController extends ChangeNotifier {
       final poolFromDb = List<dynamic>.from(data['letterPool']);
       final newPool = poolFromDb.map((s) => Letter.fromString(s.toString())).toList();
       if (!_listsEqual(_letterPool, newPool)) {
-        _letterPool.clear();
+      _letterPool.clear();
         _letterPool.addAll(newPool);
         hasChanges = true;
       }
@@ -625,6 +670,20 @@ class GameController extends ChangeNotifier {
     if (data['firstPlayerId'] != null && data['firstPlayerId'] != _firstPlayerId) {
       _firstPlayerId = data['firstPlayerId'];
       hasChanges = true;
+    }
+
+    // Handle turn results - show to both players
+    if (data['lastTurnResults'] != null) {
+      final newTurnResults = Map<String, dynamic>.from(data['lastTurnResults']);
+      final currentTimestamp = _lastTurnResults?['timestamp'] ?? 0;
+      final newTimestamp = newTurnResults['timestamp'] ?? 0;
+      
+      // Only show if this is a new turn result (different timestamp)
+      if (newTimestamp > currentTimestamp) {
+        _lastTurnResults = newTurnResults;
+        // Trigger callback to show turn results to both players
+        onShowTurnResults?.call(newTurnResults);
+      }
     }
 
     if (!_isSynced) {
@@ -678,7 +737,7 @@ class GameController extends ChangeNotifier {
         }
       });
       notifyListeners();
-    }
+      }
   }
 
   // Helper method to compare lists of letters
@@ -1084,5 +1143,42 @@ class GameController extends ChangeNotifier {
       player2QuadTurns: _player2QuadTurns,
       firstMoveDone: _firstMoveDone,
     );
+  }
+
+  Future<void> _updateRepository() async {
+    if (_roomID == null) return;
+    
+    // Cancel any pending update
+    _updateDebounceTimer?.cancel();
+    
+    // Set a flag to indicate we have a pending update
+    _pendingUpdate = true;
+    
+    // Debounce the update to prevent too frequent database calls
+    _updateDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      if (_pendingUpdate) {
+        _pendingUpdate = false;
+        await _repository.updateGameState(
+          _roomID!,
+          player1Score: _player1Score,
+          player2Score: _player2Score,
+          currentPlayer: _currentPlayer.toString(),
+          boardState: _board,
+          player1Hand: _player1Hand,
+          player2Hand: _player2Hand,
+          letterPool: _letterPool,
+          turnStartTimestamp: _turnStartTimestamp,
+          players: {'player1': _player1Name, 'player2': _player2Name},
+          player1DoubleTurns: _player1DoubleTurns,
+          player2DoubleTurns: _player2DoubleTurns,
+          player1QuadTurns: _player1QuadTurns,
+          player2QuadTurns: _player2QuadTurns,
+          firstMoveDone: _firstMoveDone,
+          player1Replacements: _player1Replacements,
+          player2Replacements: _player2Replacements,
+          lastTurnResults: _lastTurnResults,
+        );
+      }
+    });
   }
 }

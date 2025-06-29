@@ -6,6 +6,7 @@ import 'package:bonus/widgets/game_board.dart';
 import 'package:bonus/widgets/letter_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 
 class GameScreen extends StatefulWidget {
@@ -25,11 +26,18 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   late GameController _gameController;
   Timer? _uiTimer;
+  AudioPlayer? _backgroundPlayer;
+  AudioPlayer? _timeRunningOutPlayer;
+  bool _isPlayingTimeRunningOut = false;
+  bool _isBackgroundMusicMuted = false;
+  int _lastTimeRunningOutTime = 0;
 
   @override
   void initState() {
     super.initState();
     _gameController = Provider.of<GameController>(context, listen: false);
+    _initializeAudio();
+    _startUITimer();
 
     if (widget.roomID.isNotEmpty) {
       _gameController.setRoomID(widget.roomID);
@@ -118,14 +126,39 @@ class _GameScreenState extends State<GameScreen> {
       );
     };
 
-    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+    _gameController.onShowTurnResults = (turnResults) {
+      if (!mounted) return;
+      _showTurnResultsDialog(turnResults);
+    };
+
+    // Start background music after a short delay to ensure audio is initialized
+    Future.delayed(Duration(milliseconds: 500), () {
+      if (mounted) {
+        _startBackgroundMusic();
+      }
     });
+  }
+
+  void _initializeAudio() async {
+    try {
+      print('Initializing audio players...');
+      _backgroundPlayer = AudioPlayer();
+      _timeRunningOutPlayer = AudioPlayer();
+      
+      // Set volume for background music
+      await _backgroundPlayer?.setVolume(0.3);
+      await _timeRunningOutPlayer?.setVolume(0.5);
+      print('Audio players initialized successfully');
+    } catch (e) {
+      print('Error initializing audio: $e');
+    }
   }
 
   @override
   void dispose() {
     _uiTimer?.cancel();
+    _backgroundPlayer?.dispose();
+    _timeRunningOutPlayer?.dispose();
     _gameController.markPlayerLeft();
     super.dispose();
   }
@@ -286,16 +319,32 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
           Positioned(
-            bottom: 24,
-            left: 24,
-            child: FloatingActionButton(
+            bottom: 22,
+            left: 22,
+            child: FloatingActionButton.small(
               heroTag: 'homeBtn',
-              backgroundColor: Colors.white,
+              backgroundColor: Colors.white.withOpacity(0.9),
               foregroundColor: Colors.deepPurple,
-              child: const Icon(Icons.home, size: 28),
+              elevation: 4,
               onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                Navigator.of(context).pop();
               },
+              child: const Icon(Icons.home, size: 20),
+            ),
+          ),
+          // Debug audio button
+          Positioned(
+            bottom: 22,
+            right: 22,
+            child: FloatingActionButton.small(
+              heroTag: 'audioBtn',
+              backgroundColor: _isBackgroundMusicMuted ? Colors.red.withOpacity(0.9) : Colors.green.withOpacity(0.9),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              onPressed: () {
+                _toggleBackgroundMusic();
+              },
+              child: Icon(_isBackgroundMusicMuted ? Icons.volume_off : Icons.volume_up, size: 20),
             ),
           ),
         ],
@@ -463,30 +512,80 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Widget _buildTimer(GameController gameController, bool isSmallScreen) {
-    return Card(
-      color: Colors.deepPurple[100],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-            vertical: isSmallScreen ? 4 : 6,
-            horizontal: isSmallScreen ? 8 : 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.timer,
-                color: Colors.deepPurple, size: isSmallScreen ? 16 : 20),
-            SizedBox(width: isSmallScreen ? 3 : 4),
-            Text('Time: ',
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14,
-                    color: Colors.deepPurple[900])),
-            Text('${gameController.remainingTime}',
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 14 : 16,
-                    fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
+    final remainingTime = gameController.remainingTime;
+    final isLowTime = remainingTime <= 30;
+    final isCriticalTime = remainingTime <= 10;
+    
+    // Play time running out sound for last 10 seconds
+    if (isCriticalTime && !_isPlayingTimeRunningOut) {
+      _playTimeRunningOutSound();
+      _isPlayingTimeRunningOut = true;
+    } else if (!isCriticalTime && _isPlayingTimeRunningOut) {
+      _stopTimeRunningOutSound();
+      _isPlayingTimeRunningOut = false;
+    }
+    
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: isCriticalTime ? 500 : 1000),
+      tween: Tween(begin: 0.8, end: 1.1),
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: isLowTime ? scale : 1.0,
+          child: Card(
+            color: isCriticalTime 
+                ? Colors.red[100] 
+                : isLowTime 
+                    ? Colors.orange[100] 
+                    : Colors.deepPurple[100],
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                  vertical: isSmallScreen ? 4 : 6,
+                  horizontal: isSmallScreen ? 8 : 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedSwitcher(
+                    duration: Duration(milliseconds: 300),
+                    child: Icon(
+                      isCriticalTime ? Icons.warning : Icons.timer,
+                      key: ValueKey(isCriticalTime),
+                      color: isCriticalTime 
+                          ? Colors.red[700] 
+                          : isLowTime 
+                              ? Colors.orange[700] 
+                              : Colors.deepPurple,
+                      size: isSmallScreen ? 16 : 20,
+                    ),
+                  ),
+                  SizedBox(width: isSmallScreen ? 3 : 4),
+                  Text('Time: ',
+                      style: TextStyle(
+                          fontSize: isSmallScreen ? 12 : 14,
+                          color: isCriticalTime 
+                              ? Colors.red[900] 
+                              : isLowTime 
+                                  ? Colors.orange[900] 
+                                  : Colors.deepPurple[900])),
+                  AnimatedDefaultTextStyle(
+                    duration: Duration(milliseconds: 300),
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: isCriticalTime 
+                          ? Colors.red[700] 
+                          : isLowTime 
+                              ? Colors.orange[700] 
+                              : Colors.deepPurple[700],
+                    ),
+                    child: Text('$remainingTime'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -881,7 +980,7 @@ class _GameScreenState extends State<GameScreen> {
               height: 44,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isMyTurn ? Colors.deepPurple : Colors.grey,
+                  backgroundColor: (isMyTurn && gameController.placedThisTurn.isNotEmpty) ? Colors.deepPurple : Colors.grey,
                   foregroundColor: Colors.white,
                   textStyle:
                       const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -890,13 +989,13 @@ class _GameScreenState extends State<GameScreen> {
                   elevation: 6,
                   minimumSize: const Size(0, 44),
                 ),
-                onPressed: isMyTurn
+                onPressed: (isMyTurn && gameController.placedThisTurn.isNotEmpty)
                     ? () async {
                         final wasMyTurn = isMyTurn;
                         final results =
                             await gameController.validateAndGetTurnResults();
                         if (results == null) {
-                          // Show detailed invalid words dialog
+                          // Show dialog asking if player wants to accept invalid words
                           final wordsData = gameController.board;
                           final placedThisTurn = gameController.placedThisTurn;
                           final scoreService = gameController.scoreService;
@@ -924,6 +1023,124 @@ class _GameScreenState extends State<GameScreen> {
                             board: wordsData,
                             placedThisTurn: placedSet,
                           );
+                          
+                          // Check if there are any invalid words
+                          final invalidWords = wordList
+                              .where((w) => !validationService.isValidWord(w['word']))
+                              .toList();
+                          
+                          if (invalidWords.isNotEmpty) {
+                            if (!mounted) return;
+                            final shouldAccept = await showDialog<bool>(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: Colors.white.withOpacity(0.95),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                title: Row(
+                                  children: [
+                                    Icon(Icons.help_outline,
+                                        color: Colors.orange, size: 28),
+                                    SizedBox(width: 8),
+                                    Text('Invalid Words Found',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepPurple)),
+                                  ],
+                                ),
+                                content: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'The following words are not in the dictionary:',
+                                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                                      ),
+                                      SizedBox(height: 12),
+                                      for (final wordData in invalidWords)
+                                        Row(
+                                          children: [
+                                            Icon(Icons.close, color: Colors.red, size: 20),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              wordData['word'],
+                                              style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.red[700]),
+                                            ),
+                                          ],
+                                        ),
+                                      SizedBox(height: 16),
+                                      Container(
+                                        padding: EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange[50],
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.orange[200]!),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                                            SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Would you like to accept these words anyway, or skip your turn?',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.orange[800],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: Colors.grey[600],
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                      textStyle: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: Text('Skip Turn'),
+                                  ),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      backgroundColor: Colors.orange[600],
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                      textStyle: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    onPressed: () => Navigator.of(context).pop(true),
+                                    child: Text('Accept Words'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            
+                            if (shouldAccept == true) {
+                              // Accept invalid words and continue with turn
+                              final acceptedWords = invalidWords.map((w) => w['word'] as String).toList();
+                              await gameController.endTurn(skipValidation: true, acceptedInvalidWords: acceptedWords);
+                            } else {
+                              // Skip turn
+                              gameController.skipTurn();
+                            }
+                            return;
+                          }
+                          
+                          // If no invalid words, just show the regular invalid move dialog
                           if (!mounted) return;
                           await showDialog(
                             context: context,
@@ -936,7 +1153,7 @@ class _GameScreenState extends State<GameScreen> {
                                   Icon(Icons.info_outline,
                                       color: Colors.deepPurple, size: 28),
                                   SizedBox(width: 8),
-                                  Text('Turn Words',
+                                  Text('Invalid Move',
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.deepPurple)),
@@ -944,36 +1161,9 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                               content: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8.0),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    for (final wordData in wordList)
-                                      Row(
-                                        children: [
-                                          Text(wordData['word'],
-                                              style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold)),
-                                          SizedBox(width: 8),
-                                          validationService
-                                                  .isValidWord(wordData['word'])
-                                              ? Icon(Icons.check_circle,
-                                                  color: Colors.green, size: 22)
-                                              : Icon(Icons.cancel,
-                                                  color: Colors.red, size: 22),
-                                          SizedBox(width: 8),
-                                          if (validationService
-                                              .isValidWord(wordData['word']))
-                                            Text(
-                                              '+${wordScore(wordData)}',
-                                              style: TextStyle(
-                                                  fontSize: 16,
-                                                  color: Colors.green[800]),
-                                            ),
-                                        ],
-                                      ),
-                                  ],
+                                child: Text(
+                                  'Your move is invalid. Please check your word placement.',
+                                  style: TextStyle(fontSize: 16),
                                 ),
                               ),
                               actions: [
@@ -983,8 +1173,7 @@ class _GameScreenState extends State<GameScreen> {
                                     backgroundColor: Colors.deepPurple,
                                     shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12)),
-                                    textStyle:
-                                        TextStyle(fontWeight: FontWeight.bold),
+                                    textStyle: TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   onPressed: () => Navigator.of(context).pop(),
                                   child: Text('OK'),
@@ -1094,40 +1283,40 @@ class _GameScreenState extends State<GameScreen> {
                                         // Header with icon and title
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Container(
+                                  children: [
+                                    Container(
                                               width: 48,
                                               height: 48,
-                                              decoration: BoxDecoration(
+                                      decoration: BoxDecoration(
                                                 color: Colors.white.withOpacity(0.25),
                                                 borderRadius: BorderRadius.circular(16),
                                                 border: Border.all(
                                                   color: Colors.white.withOpacity(0.3),
                                                   width: 2,
                                                 ),
-                                                boxShadow: [
-                                                  BoxShadow(
+                                        boxShadow: [
+                                          BoxShadow(
                                                     color: Colors.black.withOpacity(0.1),
                                                     blurRadius: 8,
                                                     offset: const Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Center(
-                                                child: Image.asset(
-                                                  bonus.assetPath,
-                                                  width: 32,
-                                                  height: 32,
-                                                ),
-                                              ),
-                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Image.asset(
+                                          bonus.assetPath,
+                                          width: 32,
+                                          height: 32,
+                                        ),
+                                      ),
+                                    ),
                                             const SizedBox(width: 16),
                                             Expanded(
                                               child: Text(
-                                                'Bonus Collected!',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
+                                      'Bonus Collected!',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
                                                   fontSize: 24,
                                                   shadows: [
                                                     Shadow(
@@ -1137,15 +1326,15 @@ class _GameScreenState extends State<GameScreen> {
                                                     ),
                                                   ],
                                                 ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                         const SizedBox(height: 20),
                                         
                                         // Bonus description
                                         Container(
-                                          padding: const EdgeInsets.all(16),
+                                          padding: const EdgeInsets.all(20),
                                           decoration: BoxDecoration(
                                             color: Colors.white.withOpacity(0.15),
                                             borderRadius: BorderRadius.circular(16),
@@ -1153,23 +1342,23 @@ class _GameScreenState extends State<GameScreen> {
                                               color: Colors.white.withOpacity(0.2),
                                               width: 1,
                                             ),
-                                          ),
-                                          child: Text(
-                                            _bonusDescription(bonus),
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                              shadows: [
-                                                Shadow(
-                                                  color: Colors.black26,
-                                                  offset: Offset(0, 1),
-                                                  blurRadius: 2,
-                                                ),
-                                              ],
                                             ),
-                                            textAlign: TextAlign.center,
-                                          ),
+                                            child: Text(
+                                              _bonusDescription(bonus),
+                                              style: const TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: Colors.black26,
+                                                      offset: Offset(0, 1),
+                                                      blurRadius: 2,
+                                                    ),
+                                                  ],
+                                                ),
+                                                textAlign: TextAlign.center,
+                                            ),
                                         ),
                                         const SizedBox(height: 24),
                                         
@@ -1180,25 +1369,25 @@ class _GameScreenState extends State<GameScreen> {
                                           child: ElevatedButton(
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.white.withOpacity(0.25),
-                                              foregroundColor: Colors.white,
+                                      foregroundColor: Colors.white,
                                               elevation: 0,
-                                              shape: RoundedRectangleBorder(
+                                      shape: RoundedRectangleBorder(
                                                 borderRadius: BorderRadius.circular(16),
                                                 side: BorderSide(
                                                   color: Colors.white.withOpacity(0.3),
                                                   width: 1,
                                                 ),
                                               ),
-                                              textStyle: const TextStyle(
+                                      textStyle: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
                                               ),
-                                            ),
-                                            onPressed: () => Navigator.of(context).pop(),
-                                            child: const Text('OK'),
+                                    ),
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text('OK'),
                                           ),
-                                        ),
-                                      ],
+                                  ),
+                                ],
                                     ),
                                   ),
                                 ),
@@ -1211,100 +1400,7 @@ class _GameScreenState extends State<GameScreen> {
                             wordList.every(
                                 (w) => validationService.isValidWord(w['word']));
                         if (!mounted) return;
-                        await showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            backgroundColor: Colors.white.withOpacity(0.95),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20)),
-                            title: Row(
-                              children: [
-                                Icon(Icons.info_outline,
-                                    color: Colors.deepPurple, size: 28),
-                                SizedBox(width: 8),
-                                Text('Turn Words',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.deepPurple)),
-                              ],
-                            ),
-                            content: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  for (final wordData in wordList)
-                                    Row(
-                                      children: [
-                                        Text(wordData['word'],
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold)),
-                                        SizedBox(width: 8),
-                                        validationService
-                                                .isValidWord(wordData['word'])
-                                            ? Icon(Icons.check_circle,
-                                                color: Colors.green, size: 22)
-                                            : Icon(Icons.cancel,
-                                                color: Colors.red, size: 22),
-                                        SizedBox(width: 8),
-                                        if (validationService
-                                            .isValidWord(wordData['word']))
-                                          Text(
-                                            '+${wordScore(wordData)}',
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.green[800]),
-                                          ),
-                                      ],
-                                    ),
-                                  const SizedBox(height: 12),
-                                  Divider(),
-                                  Row(
-                                    children: [
-                                      Text('Total Score:',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold)),
-                                      SizedBox(width: 8),
-                                      if (multiplier > 1)
-                                        Text('$baseScore x $multiplier = $totalScore',
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.deepPurple,
-                                                fontWeight: FontWeight.bold)),
-                                      if (multiplier == 1)
-                                        Text('$totalScore',
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.deepPurple,
-                                                fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Colors.deepPurple,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  textStyle:
-                                      TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  await gameController.endTurn(
-                                      skipValidation: true);
-                                },
-                                child: Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
+                        await gameController.endTurn();
                       }
                     : null,
                 icon: const Icon(Icons.check_circle_outline, size: 30),
@@ -1377,5 +1473,252 @@ class _GameScreenState extends State<GameScreen> {
         ],
       ),
     );
+  }
+
+  void _showTurnResultsDialog(Map<String, dynamic> turnResults) {
+    final playerName = turnResults['playerName'] as String;
+    final playerId = turnResults['playerId'] as int;
+    final words = turnResults['words'] as List<dynamic>;
+    final totalScore = turnResults['totalScore'] as int;
+    final baseScore = turnResults['baseScore'] as int;
+    final multiplier = turnResults['multiplier'] as int;
+    
+    // Check if this is the current player's score or the other player's
+    final isMyScore = playerId == widget.localPlayerId;
+    
+    // Different styles based on whose score it is
+    final titleIcon = isMyScore ? Icons.celebration : Icons.info_outline;
+    final titleIconColor = isMyScore ? Colors.orange : Colors.blue;
+    final titleText = isMyScore ? 'You Scored!' : '$playerName Scored';
+    final backgroundColor = isMyScore ? Colors.orange[50] : Colors.blue[50];
+    final borderColor = isMyScore ? Colors.orange[200] : Colors.blue[200];
+    final textColor = isMyScore ? Colors.orange[700] : Colors.blue[700];
+    final scoreColor = isMyScore ? Colors.green[700] : Colors.black;
+    final encouragementText = isMyScore ? 'Amazing work!' : 'Nice play!';
+    final encouragementIcon = isMyScore ? Icons.emoji_events : Icons.thumb_up;
+
+    showDialog(
+                          context: context,
+      barrierDismissible: false,
+                          builder: (context) => AlertDialog(
+                            backgroundColor: Colors.white.withOpacity(0.95),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: Row(
+                              children: [
+            Icon(titleIcon, color: titleIconColor, size: 28),
+                                SizedBox(width: 8),
+            Text(titleText,
+                                    style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                              ],
+                            ),
+                            content: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+              if (words.isNotEmpty) ...[
+                Text('Words Created:', 
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                for (final wordData in words)
+                                    Row(
+                                      children: [
+                                        Text(wordData['word'],
+                                            style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                                        SizedBox(width: 8),
+                      if (wordData['isValid']) ...[
+                        if (isMyScore && wordData['wasAccepted'] == true)
+                          Icon(Icons.star, color: Colors.amber, size: 20)
+                        else if (isMyScore)
+                          Icon(Icons.star, color: Colors.amber, size: 20),
+                        if (isMyScore) SizedBox(width: 8),
+                        Text(
+                          '+${wordData['score']}',
+                          style: TextStyle(
+                              fontSize: 16, color: scoreColor, fontWeight: FontWeight.bold),
+                        ),
+                        if (isMyScore && wordData['wasAccepted'] == true) ...[
+                          SizedBox(width: 4),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.amber[300]!),
+                            ),
+                            child: Text(
+                              'Accepted',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.amber[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ] else ...[
+                        Icon(Icons.close, color: Colors.red[400], size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Invalid',
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.red[400], fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                                      ],
+                                    ),
+                SizedBox(height: 12),
+                                  Divider(),
+              ],
+                                  Row(
+                                    children: [
+                      if (isMyScore) ...[
+                        Icon(Icons.trending_up, color: scoreColor, size: 20),
+                        SizedBox(width: 8),
+                      ],
+                  Text('Total Points:',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      SizedBox(width: 8),
+                                      if (multiplier > 1)
+                    Text('$baseScore × $multiplier = $totalScore',
+                                            style: TextStyle(
+                            fontSize: 18,
+                            color: scoreColor,
+                                                fontWeight: FontWeight.bold)),
+                                      if (multiplier == 1)
+                                        Text('$totalScore',
+                                            style: TextStyle(
+                            fontSize: 18,
+                            color: scoreColor,
+                                                fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+              if (isMyScore) ...[
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: borderColor!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(encouragementIcon, color: textColor, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        encouragementText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: textColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+                                ],
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+              backgroundColor: isMyScore ? Colors.orange[600] : Colors.blue[600],
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+              textStyle: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startBackgroundMusic() async {
+    try {
+      print('Starting background music...');
+      if (_backgroundPlayer != null) {
+        await _backgroundPlayer!.play(AssetSource('sounds/bonusBackGroundMusic.mp3'));
+        await _backgroundPlayer!.setReleaseMode(ReleaseMode.loop);
+        await _backgroundPlayer!.setVolume(0.3);
+        print('Background music started successfully');
+      } else {
+        print('Background player is null');
+      }
+    } catch (e) {
+      print('Could not play background music: $e');
+    }
+  }
+
+  void _pauseBackgroundMusic() async {
+    try {
+      await _backgroundPlayer?.pause();
+    } catch (e) {
+      print('Could not pause background music: $e');
+    }
+  }
+
+  void _resumeBackgroundMusic() async {
+    try {
+      await _backgroundPlayer?.resume();
+    } catch (e) {
+      print('Could not resume background music: $e');
+    }
+  }
+
+  void _playTimeRunningOutSound() async {
+    try {
+      print('Playing time running out sound...');
+      if (_timeRunningOutPlayer != null) {
+        await _timeRunningOutPlayer!.play(AssetSource('sounds/timeRunningOut.mp3'));
+        print('Time running out sound played successfully');
+      } else {
+        print('Time running out player is null');
+      }
+    } catch (e) {
+      print('Could not play time running out sound: $e');
+    }
+  }
+
+  void _stopTimeRunningOutSound() async {
+    if (_timeRunningOutPlayer != null) {
+      try {
+        await _timeRunningOutPlayer!.stop();
+      } catch (e) {
+        print('Could not stop time running out sound: $e');
+      }
+    }
+  }
+
+  void _toggleBackgroundMusic() async {
+    try {
+      if (_isBackgroundMusicMuted) {
+        // Unmute
+        await _backgroundPlayer?.setVolume(0.3);
+        _isBackgroundMusicMuted = false;
+        print('Background music unmuted');
+      } else {
+        // Mute
+        await _backgroundPlayer?.setVolume(0.0);
+        _isBackgroundMusicMuted = true;
+        print('Background music muted');
+      }
+      setState(() {}); // Update UI to show current state
+    } catch (e) {
+      print('Could not toggle background music: $e');
+    }
+  }
+
+  void _startUITimer() {
+    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 }

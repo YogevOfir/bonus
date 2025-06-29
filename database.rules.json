@@ -104,6 +104,31 @@
         },
         "firstPlayerId": {
           ".validate": "newData.isNumber() && (newData.val() == 1 || newData.val() == 2)"
+        },
+        
+        "lastTurnResults": {
+          ".validate": "newData.hasChildren(['playerId', 'playerName', 'words', 'totalScore', 'baseScore', 'multiplier', 'timestamp'])",
+          "playerId": {
+            ".validate": "newData.isNumber() && (newData.val() == 1 || newData.val() == 2)"
+          },
+          "playerName": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+          },
+          "words": {
+            ".validate": "newData.hasChildren()"
+          },
+          "totalScore": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "baseScore": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "multiplier": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 4"
+          },
+          "timestamp": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          }
         }
       }
     },

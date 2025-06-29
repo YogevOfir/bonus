@@ -23,6 +23,7 @@ abstract class GameRepository {
     int? lastSkipped,
     int? player1Replacements,
     int? player2Replacements,
+    Map<String, dynamic>? lastTurnResults,
   });
 
   Future<String> createRoom(String player1Name);
