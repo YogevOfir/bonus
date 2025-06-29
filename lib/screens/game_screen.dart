@@ -396,7 +396,7 @@ class _GameScreenState extends State<GameScreen> {
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10)),
+                                  fontSize: 14)),
                         ),
                       )
                     else if (gameController.player1DoubleTurns > 0)
@@ -413,7 +413,7 @@ class _GameScreenState extends State<GameScreen> {
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10)),
+                                  fontSize: 14)),
                         ),
                       ),
                   ],
@@ -474,7 +474,7 @@ class _GameScreenState extends State<GameScreen> {
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10)),
+                                  fontSize: 14)),
                         ),
                       )
                     else if (gameController.player2DoubleTurns > 0)
@@ -491,7 +491,7 @@ class _GameScreenState extends State<GameScreen> {
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10)),
+                                  fontSize: 14)),
                         ),
                       ),
                   ],
@@ -537,14 +537,14 @@ class _GameScreenState extends State<GameScreen> {
                 : isLowTime 
                     ? Colors.orange[100] 
                     : Colors.deepPurple[100],
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                  vertical: isSmallScreen ? 4 : 6,
-                  horizontal: isSmallScreen ? 8 : 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+            vertical: isSmallScreen ? 4 : 6,
+            horizontal: isSmallScreen ? 8 : 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
                   AnimatedSwitcher(
                     duration: Duration(milliseconds: 300),
                     child: Icon(
@@ -558,10 +558,10 @@ class _GameScreenState extends State<GameScreen> {
                       size: isSmallScreen ? 16 : 20,
                     ),
                   ),
-                  SizedBox(width: isSmallScreen ? 3 : 4),
-                  Text('Time: ',
-                      style: TextStyle(
-                          fontSize: isSmallScreen ? 12 : 14,
+            SizedBox(width: isSmallScreen ? 3 : 4),
+            Text('Time: ',
+                style: TextStyle(
+                    fontSize: isSmallScreen ? 12 : 14,
                           color: isCriticalTime 
                               ? Colors.red[900] 
                               : isLowTime 
@@ -569,8 +569,8 @@ class _GameScreenState extends State<GameScreen> {
                                   : Colors.deepPurple[900])),
                   AnimatedDefaultTextStyle(
                     duration: Duration(milliseconds: 300),
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 14 : 16,
+                style: TextStyle(
+                    fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.bold,
                       color: isCriticalTime 
                           ? Colors.red[700] 
@@ -1030,41 +1030,41 @@ class _GameScreenState extends State<GameScreen> {
                               .toList();
                           
                           if (invalidWords.isNotEmpty) {
-                            if (!mounted) return;
+                          if (!mounted) return;
                             final shouldAccept = await showDialog<bool>(
-                              context: context,
+                            context: context,
                               barrierDismissible: false,
-                              builder: (context) => AlertDialog(
-                                backgroundColor: Colors.white.withOpacity(0.95),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20)),
-                                title: Row(
-                                  children: [
+                            builder: (context) => AlertDialog(
+                              backgroundColor: Colors.white.withOpacity(0.95),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)),
+                              title: Row(
+                                children: [
                                     Icon(Icons.help_outline,
                                         color: Colors.orange, size: 28),
-                                    SizedBox(width: 8),
+                                  SizedBox(width: 8),
                                     Text('Invalid Words Found',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.deepPurple)),
-                                  ],
-                                ),
-                                content: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.deepPurple)),
+                                ],
+                              ),
+                              content: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                       Text(
                                         'The following words are not in the dictionary:',
                                         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                                       ),
                                       SizedBox(height: 12),
                                       for (final wordData in invalidWords)
-                                        Row(
-                                          children: [
+                                      Row(
+                                        children: [
                                             Icon(Icons.close, color: Colors.red, size: 20),
-                                            SizedBox(width: 8),
+                                          SizedBox(width: 8),
                                             Text(
                                               wordData['word'],
                                               style: TextStyle(
@@ -1343,11 +1343,11 @@ class _GameScreenState extends State<GameScreen> {
                                               width: 1,
                                             ),
                                             ),
-                                            child: Text(
-                                              _bonusDescription(bonus),
-                                              style: const TextStyle(
-                                                  fontSize: 18,
-                                                  color: Colors.white,
+                                  child: Text(
+                                    _bonusDescription(bonus),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white,
                                                   fontWeight: FontWeight.w600,
                                                   shadows: [
                                                     Shadow(
@@ -1561,12 +1561,12 @@ class _GameScreenState extends State<GameScreen> {
                         ],
                       ] else ...[
                         Icon(Icons.close, color: Colors.red[400], size: 20),
-                        SizedBox(width: 8),
-                        Text(
+                                        SizedBox(width: 8),
+                                          Text(
                           'Invalid',
-                          style: TextStyle(
+                                            style: TextStyle(
                               fontSize: 14, color: Colors.red[400], fontStyle: FontStyle.italic),
-                        ),
+                                          ),
                       ],
                                       ],
                                     ),
@@ -1635,11 +1635,11 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
             onPressed: () => Navigator.of(context).pop(),
             child: Text('Continue'),
-          ),
-        ],
-      ),
-    );
-  }
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
   void _startBackgroundMusic() async {
     try {

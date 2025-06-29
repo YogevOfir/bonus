@@ -955,7 +955,7 @@ class GameController extends ChangeNotifier {
     ];
     // Randomly select bonus type
     final bonusTypes = [
-      // BonusType.score,
+      BonusType.score,
       BonusType.futureDouble,
       BonusType.futureQuad,
       BonusType.extraMove,
