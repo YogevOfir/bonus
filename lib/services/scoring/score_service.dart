@@ -96,6 +96,7 @@ class ScoreService {
     required List<Letter> letterPool,
     required int activeDoubleTurns,
     required int activeQuadTurns,
+    List<String>? acceptedInvalidWords,
   }) async {
     final wordList = extractWordsForPlacedTilesWithBonuses(
       board: board,
@@ -106,10 +107,13 @@ class ScoreService {
     bool extraMoveGained = false;
     int futureDoubleTurnsGained = 0;
     int futureQuadTurnsGained = 0;
+    int letterScore = 0;
+    int bonusScore = 0;
 
     for (final wordData in wordList) {
       final word = wordData['word'] as String;
-      if (!_wordValidationService.isValidWord(word)) {
+      final isAccepted = acceptedInvalidWords?.contains(word) ?? false;
+      if (!_wordValidationService.isValidWord(word) && !isAccepted) {
         continue;
       }
 
@@ -121,12 +125,15 @@ class ScoreService {
           score += tile.letter!.isWildcard ? 0 : tile.letter!.score;
         }
       }
+      letterScore += score;
 
       final bonus = wordData['bonus'] as BonusInfo?;
       if (bonus != null) {
         switch (bonus.type) {
           case BonusType.score:
-            score += bonus.scoreValue ?? 0;
+            final bScore = bonus.scoreValue ?? 0;
+            score += bScore;
+            bonusScore += bScore;
             break;
           case BonusType.extraMove:
             extraMoveGained = true;
@@ -145,14 +152,22 @@ class ScoreService {
       totalScore += score;
     }
 
+    final baseScore = totalScore;
+    int multiplier = 1;
     if (activeQuadTurns > 0) {
       totalScore *= 4;
+      multiplier = 4;
     } else if (activeDoubleTurns > 0) {
       totalScore *= 2;
+      multiplier = 2;
     }
 
     return TurnScoreResult(
       score: totalScore,
+      baseScore: baseScore,
+      letterScore: letterScore,
+      bonusScore: bonusScore,
+      multiplier: multiplier,
       extraMoveGained: extraMoveGained,
       futureDoubleTurnsGained: futureDoubleTurnsGained,
       futureQuadTurnsGained: futureQuadTurnsGained,
@@ -162,12 +177,20 @@ class ScoreService {
 
 class TurnScoreResult {
   final int score;
+  final int baseScore;
+  final int letterScore;
+  final int bonusScore;
+  final int multiplier;
   final bool extraMoveGained;
   final int futureDoubleTurnsGained;
   final int futureQuadTurnsGained;
 
   TurnScoreResult({
     required this.score,
+    required this.baseScore,
+    required this.letterScore,
+    required this.bonusScore,
+    required this.multiplier,
     this.extraMoveGained = false,
     this.futureDoubleTurnsGained = 0,
     this.futureQuadTurnsGained = 0,

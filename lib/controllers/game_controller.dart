@@ -323,6 +323,7 @@ class GameController extends ChangeNotifier {
           _currentPlayer == 1 ? _player1DoubleTurns : _player2DoubleTurns,
       activeQuadTurns:
           _currentPlayer == 1 ? _player1QuadTurns : _player2QuadTurns,
+      acceptedInvalidWords: acceptedInvalidWords,
     );
 
     // Get words created this turn
@@ -368,8 +369,11 @@ class GameController extends ChangeNotifier {
           }
         }).toList(),
         'totalScore': scoreResult.score,
-        'baseScore': scoreResult.score,
-        'multiplier': 1,
+        'baseScore': scoreResult.baseScore,
+        'letterScore': scoreResult.letterScore,
+        'bonusScore': scoreResult.bonusScore,
+        'multiplier': scoreResult.multiplier,
+        'extraMoveGained': scoreResult.extraMoveGained,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 

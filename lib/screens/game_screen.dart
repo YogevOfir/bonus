@@ -1541,21 +1541,46 @@ class _GameScreenState extends State<GameScreen> {
     final words = turnResults['words'] as List<dynamic>;
     final totalScore = turnResults['totalScore'] as int;
     final baseScore = turnResults['baseScore'] as int;
+    final letterScore = turnResults['letterScore'] as int? ?? baseScore;
+    final bonusScore = turnResults['bonusScore'] as int? ?? 0;
     final multiplier = turnResults['multiplier'] as int;
+    final extraMoveGained = turnResults['extraMoveGained'] as bool? ?? false;
     
     // Check if this is the current player's score or the other player's
     final isMyScore = playerId == widget.localPlayerId;
     
     // Different styles based on whose score it is
-    final titleIcon = isMyScore ? Icons.celebration : Icons.info_outline;
-    final titleIconColor = isMyScore ? Colors.orange : Colors.blue;
-    final titleText = isMyScore ? 'You Scored!' : '$playerName Scored';
-    final backgroundColor = isMyScore ? Colors.orange[50] : Colors.blue[50];
-    final borderColor = isMyScore ? Colors.orange[200] : Colors.blue[200];
-    final textColor = isMyScore ? Colors.orange[700] : Colors.blue[700];
-    final scoreColor = isMyScore ? Colors.green[700] : Colors.black;
-    final encouragementText = isMyScore ? 'Amazing work!' : 'Nice play!';
-    final encouragementIcon = isMyScore ? Icons.emoji_events : Icons.thumb_up;
+    final IconData titleIcon;
+    final Color titleIconColor;
+    final String titleText;
+    final Color backgroundColor;
+    final Color borderColor;
+    final Color textColor;
+    final Color scoreColor;
+    final String encouragementText;
+    final IconData encouragementIcon;
+
+    if (isMyScore) {
+      titleIcon = Icons.celebration;
+      titleIconColor = Colors.orange;
+      titleText = 'You Scored!';
+      backgroundColor = Colors.orange[50]!;
+      borderColor = Colors.orange[200]!;
+      textColor = Colors.orange[700]!;
+      scoreColor = Colors.green[700]!;
+      encouragementText = 'Amazing work!';
+      encouragementIcon = Icons.emoji_events;
+    } else {
+      titleIcon = Icons.info_outline;
+      titleIconColor = Colors.blue;
+      titleText = '$playerName Scored';
+      backgroundColor = Colors.blue[50]!;
+      borderColor = Colors.blue[200]!;
+      textColor = Colors.blue[700]!;
+      scoreColor = Colors.black;
+      encouragementText = 'Nice play!';
+      encouragementIcon = Icons.thumb_up;
+    }
 
     showDialog(
                           context: context,
@@ -1577,111 +1602,22 @@ class _GameScreenState extends State<GameScreen> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-              if (words.isNotEmpty) ...[
-                Text('Words Created:', 
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                SizedBox(height: 8),
-                for (final wordData in words)
-                                    Row(
-                                      children: [
-                                        Text(wordData['word'],
-                                            style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                                        SizedBox(width: 8),
-                      if (wordData['isValid']) ...[
-                        if (isMyScore && wordData['wasAccepted'] == true)
-                          Icon(Icons.star, color: Colors.amber, size: 20)
-                        else if (isMyScore)
-                          Icon(Icons.star, color: Colors.amber, size: 20),
-                        if (isMyScore) SizedBox(width: 8),
-                        Text(
-                          '+${wordData['score']}',
-                          style: TextStyle(
-                              fontSize: 16, color: scoreColor, fontWeight: FontWeight.bold),
-                        ),
-                        if (isMyScore && wordData['wasAccepted'] == true) ...[
-                          SizedBox(width: 4),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.amber[100],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.amber[300]!),
-                            ),
-                            child: Text(
-                              'Accepted',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.amber[800],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ] else ...[
-                        Icon(Icons.close, color: Colors.red[400], size: 20),
-                                        SizedBox(width: 8),
-                                          Text(
-                          'Invalid',
-                                            style: TextStyle(
-                              fontSize: 14, color: Colors.red[400], fontStyle: FontStyle.italic),
-                                          ),
-                      ],
-                                      ],
-                                    ),
-                SizedBox(height: 12),
-                                  Divider(),
-              ],
-                                  Row(
-                                    children: [
-                      if (isMyScore) ...[
-                        Icon(Icons.trending_up, color: scoreColor, size: 20),
-                        SizedBox(width: 8),
-                      ],
-                  Text('Total Points:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                      SizedBox(width: 8),
-                                      if (multiplier > 1)
-                    Text('$baseScore × $multiplier = $totalScore',
-                                            style: TextStyle(
-                            fontSize: 18,
-                            color: scoreColor,
-                                                fontWeight: FontWeight.bold)),
-                                      if (multiplier == 1)
-                                        Text('$totalScore',
-                                            style: TextStyle(
-                            fontSize: 18,
-                            color: scoreColor,
-                                                fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-              if (isMyScore) ...[
-                SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: borderColor!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(encouragementIcon, color: textColor, size: 16),
-                      SizedBox(width: 4),
-                      Text(
-                        encouragementText,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: textColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-                                ],
+                                children: _buildTurnResultContent(
+                                  words,
+                                  isMyScore,
+                                  scoreColor,
+                                  baseScore,
+                                  letterScore,
+                                  bonusScore,
+                                  multiplier,
+                                  totalScore,
+                                  extraMoveGained,
+                                  backgroundColor,
+                                  borderColor,
+                                  textColor,
+                                  encouragementIcon,
+                                  encouragementText,
+                                ),
                               ),
                             ),
                             actions: [
@@ -1700,6 +1636,181 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         );
                       }
+
+  List<Widget> _buildTurnResultContent(
+    List<dynamic> words,
+    bool isMyScore,
+    Color scoreColor,
+    int baseScore,
+    int letterScore,
+    int bonusScore,
+    int multiplier,
+    int totalScore,
+    bool extraMoveGained,
+    Color? backgroundColor,
+    Color? borderColor,
+    Color? textColor,
+    IconData encouragementIcon,
+    String encouragementText,
+  ) {
+    List<Widget> content = [];
+
+    if (words.isNotEmpty) {
+      content.add(
+        Text(
+          'Words Created:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      );
+      content.add(SizedBox(height: 8));
+
+      for (final wordData in words) {
+        content.add(
+          Row(
+            children: [
+              Text(
+                wordData['word'],
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(width: 8),
+              if (wordData['isValid']) ...[
+                if (isMyScore && wordData['wasAccepted'] == true)
+                  Icon(Icons.star, color: Colors.amber, size: 20)
+                else if (isMyScore)
+                  Icon(Icons.star, color: Colors.amber, size: 20),
+                if (isMyScore) SizedBox(width: 8),
+                Text(
+                  '+${wordData['score']}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: scoreColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (isMyScore && wordData['wasAccepted'] == true) ...[
+                  SizedBox(width: 4),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber[300]!),
+                    ),
+                    child: Text(
+                      'Accepted',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.amber[800],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Icon(Icons.close, color: Colors.red[400], size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Invalid',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.red[400],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }
+      content.add(SizedBox(height: 12));
+      content.add(Divider());
+    }
+
+    String scoreText;
+    if (bonusScore > 0 && multiplier > 1) {
+      scoreText = '($letterScore + $bonusScore) × $multiplier = $totalScore';
+    } else if (bonusScore > 0) {
+      scoreText = '$letterScore + $bonusScore = $totalScore';
+    } else if (multiplier > 1) {
+      scoreText = '$letterScore × $multiplier = $totalScore';
+    } else {
+      scoreText = '$totalScore';
+    }
+
+    content.add(
+      Row(
+        children: [
+          if (isMyScore) ...[
+            Icon(Icons.trending_up, color: scoreColor, size: 20),
+            SizedBox(width: 8),
+          ],
+          Text(
+            'Total Points:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(width: 8),
+          Text(
+            scoreText,
+            style: TextStyle(
+              fontSize: 18,
+              color: scoreColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (extraMoveGained) {
+      content.add(SizedBox(height: 8));
+      content.add(
+        Row(
+          children: [
+            Icon(Icons.replay, color: Colors.green[600], size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Extra Turn Gained!',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.green[700],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (isMyScore) {
+      content.add(SizedBox(height: 8));
+      content.add(
+        Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor ?? Colors.grey),
+          ),
+          child: Row(
+            children: [
+              Icon(encouragementIcon, color: textColor ?? Colors.black, size: 16),
+              SizedBox(width: 4),
+              Text(
+                encouragementText,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: textColor ?? Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return content;
+  }
 
   void _startBackgroundMusic() async {
     try {
