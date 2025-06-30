@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 
+import '../services/preferences_service.dart';
+
 class GameScreen extends StatefulWidget {
   final bool isAiGame;
   final String roomID;
@@ -33,12 +35,13 @@ class _GameScreenState extends State<GameScreen> {
   double _timeRunningOutVolume = 0.5;
   bool _showVolumeSliders = false;
   int _lastTimeRunningOutTime = 0;
+  final PreferencesService _preferencesService = PreferencesService();
 
   @override
   void initState() {
     super.initState();
     _gameController = Provider.of<GameController>(context, listen: false);
-    _initializeAudio();
+    _initScreen();
     _startUITimer();
 
     if (widget.roomID.isNotEmpty) {
@@ -132,21 +135,22 @@ class _GameScreenState extends State<GameScreen> {
       if (!mounted) return;
       _showTurnResultsDialog(turnResults);
     };
-
-    // Start background music after a short delay to ensure audio is initialized
-    Future.delayed(Duration(milliseconds: 500), () {
-      if (mounted) {
-        _startBackgroundMusic();
-      }
-    });
   }
 
-  void _initializeAudio() async {
+  void _initScreen() async {
+    final volumes = await _preferencesService.loadVolumeSettings();
+    if (mounted) {
+      setState(() {
+        _backgroundMusicVolume = volumes['background']!;
+        _timeRunningOutVolume = volumes['effects']!;
+      });
+    }
+
     try {
       print('Initializing audio players...');
       _backgroundPlayer = AudioPlayer();
       _timeRunningOutPlayer = AudioPlayer();
-      
+
       // Set volume for background music
       await _backgroundPlayer?.setVolume(_backgroundMusicVolume);
       await _timeRunningOutPlayer?.setVolume(_timeRunningOutVolume);
@@ -154,6 +158,7 @@ class _GameScreenState extends State<GameScreen> {
     } catch (e) {
       print('Error initializing audio: $e');
     }
+    _startBackgroundMusic();
   }
 
   @override
@@ -388,6 +393,7 @@ class _GameScreenState extends State<GameScreen> {
                             _backgroundMusicVolume = newVolume;
                           });
                           _backgroundPlayer?.setVolume(newVolume);
+                          _preferencesService.saveVolumeSettings(_backgroundMusicVolume, _timeRunningOutVolume);
                         },
                       ),
                       const SizedBox(width: 16),
@@ -400,6 +406,7 @@ class _GameScreenState extends State<GameScreen> {
                             _timeRunningOutVolume = newVolume;
                           });
                           _timeRunningOutPlayer?.setVolume(newVolume);
+                          _preferencesService.saveVolumeSettings(_backgroundMusicVolume, _timeRunningOutVolume);
                         },
                       ),
                     ],
