@@ -36,6 +36,7 @@ class LocalGameRepository implements GameRepository {
     int? player1Replacements,
     int? player2Replacements,
     Map<String, dynamic>? lastTurnResults,
+    List<int>? lastTurnWordIndices,
   }) async {
     if (player1Score != null) _gameState['player1Score'] = player1Score;
     if (player2Score != null) _gameState['player2Score'] = player2Score;
@@ -56,6 +57,7 @@ class LocalGameRepository implements GameRepository {
     if (player1Replacements != null) _gameState['player1Replacements'] = player1Replacements;
     if (player2Replacements != null) _gameState['player2Replacements'] = player2Replacements;
     if (lastTurnResults != null) _gameState['lastTurnResults'] = lastTurnResults;
+    if (lastTurnWordIndices != null) _gameState['lastTurnWordIndices'] = lastTurnWordIndices;
     _controller.add(_gameState);
   }
 

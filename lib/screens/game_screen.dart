@@ -29,7 +29,9 @@ class _GameScreenState extends State<GameScreen> {
   AudioPlayer? _backgroundPlayer;
   AudioPlayer? _timeRunningOutPlayer;
   bool _isPlayingTimeRunningOut = false;
-  bool _isBackgroundMusicMuted = false;
+  double _backgroundMusicVolume = 0.3;
+  double _timeRunningOutVolume = 0.5;
+  bool _showVolumeSliders = false;
   int _lastTimeRunningOutTime = 0;
 
   @override
@@ -146,8 +148,8 @@ class _GameScreenState extends State<GameScreen> {
       _timeRunningOutPlayer = AudioPlayer();
       
       // Set volume for background music
-      await _backgroundPlayer?.setVolume(0.3);
-      await _timeRunningOutPlayer?.setVolume(0.5);
+      await _backgroundPlayer?.setVolume(_backgroundMusicVolume);
+      await _timeRunningOutPlayer?.setVolume(_timeRunningOutVolume);
       print('Audio players initialized successfully');
     } catch (e) {
       print('Error initializing audio: $e');
@@ -171,183 +173,241 @@ class _GameScreenState extends State<GameScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF7F53AC),
-                  Color(0xFF647DEE),
-                  Color(0xFF63E2FF)
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      body: GestureDetector(
+        onTap: () {
+          if (_showVolumeSliders) {
+            setState(() {
+              _showVolumeSliders = false;
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF7F53AC),
+                    Color(0xFF647DEE),
+                    Color(0xFF63E2FF)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ),
-            child: SafeArea(
-              child: Consumer<GameController>(
-                builder: (context, gameController, child) {
-                  bool isLocalGame = !gameController.isOnline;
-                  bool isMyTurn = isLocalGame
-                      ? true
-                      : gameController.currentPlayer == widget.localPlayerId;
+              child: SafeArea(
+                child: Consumer<GameController>(
+                  builder: (context, gameController, child) {
+                    bool isLocalGame = !gameController.isOnline;
+                    bool isMyTurn = isLocalGame
+                        ? true
+                        : gameController.currentPlayer == widget.localPlayerId;
 
-                  if (!gameController.isSynced) {
-                    return const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Synchronizing game state...'),
-                        ],
-                      ),
-                    );
-                  }
-
-                  gameController.onError = (msg) {
-                    if (!mounted) return;
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: Colors.white.withOpacity(0.95),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20)),
-                        title: Row(
-                          children: [
-                            Icon(Icons.info_outline,
-                                color: Colors.deepPurple, size: 28),
-                            SizedBox(width: 8),
-                            Text(
-                              msg == "Turn skipped!" || msg == "Time's up! Your turn was skipped." || msg == "The other player skipped their turn."
-                                  ? 'Turn Skipped'
-                                  : 'Invalid Move',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepPurple),
-                            ),
-                          ],
-                        ),
-                        content: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(msg, style: TextStyle(fontSize: 18)),
-                        ),
-                        actions: [
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              backgroundColor: Colors.deepPurple,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              textStyle: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text('OK'),
-                          ),
-                        ],
-                      ),
-                    );
-                  };
-
-                  if (!gameController.wordsLoaded) {
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  if (gameController.isGameOver()) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _showGameOverDialog(context, gameController);
-                    });
-                  }
-
-                  return Padding(
-                    padding: EdgeInsets.all(isSmallScreen ? 6.0 : 10.0),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 600),
+                    if (!gameController.isSynced) {
+                      return const Center(
                         child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Score Board
-                            _buildScoreBoard(gameController, isSmallScreen),
-                            SizedBox(height: isSmallScreen ? 6 : 10),
-
-                            // Timer and Deck Row
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                Expanded(
-                                    child: _buildTimer(gameController, isSmallScreen)),
-                                SizedBox(width: isSmallScreen ? 6 : 8),
-                                Expanded(
-                                    child: _buildDeck(gameController, isSmallScreen)),
-                              ],
-                            ),
-                            SizedBox(height: isSmallScreen ? 6 : 10),
-
-                            // Game Board
-                            Card(
-                              elevation: 8,
-                              color: Colors.white.withOpacity(0.95),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18)),
-                              child: Padding(
-                                padding: EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
-                                child: GameBoard(),
-                              ),
-                            ),
-
-                            // Player Hand Area
-                            SizedBox(height: isSmallScreen ? 6 : 10),
-                            _buildPlayerHandArea(
-                                gameController, context, isSmallScreen),
-
-                            // Action Buttons
-                            SizedBox(height: isSmallScreen ? 8 : 14),
-                            _buildActionButtons(
-                                gameController, isMyTurn, context, isSmallScreen),
-                            SizedBox(height: isSmallScreen ? 6 : 10),
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Synchronizing game state...'),
                           ],
                         ),
+                      );
+                    }
+
+                    gameController.onError = (msg) {
+                      if (!mounted) return;
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: Colors.white.withOpacity(0.95),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20)),
+                          title: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  color: Colors.deepPurple, size: 28),
+                              SizedBox(width: 8),
+                              Text(
+                                msg == "Turn skipped!" || msg == "Time's up! Your turn was skipped." || msg == "The other player skipped their turn."
+                                    ? 'Turn Skipped'
+                                    : 'Invalid Move',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.deepPurple),
+                              ),
+                            ],
+                          ),
+                          content: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(msg, style: TextStyle(fontSize: 18)),
+                          ),
+                          actions: [
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Colors.deepPurple,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                textStyle: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                    };
+
+                    if (!gameController.wordsLoaded) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    if (gameController.isGameOver()) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) _showGameOverDialog(context, gameController);
+                      });
+                    }
+
+                    return Padding(
+                      padding: EdgeInsets.all(isSmallScreen ? 6.0 : 10.0),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: 600),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Score Board
+                              _buildScoreBoard(gameController, isSmallScreen),
+                              SizedBox(height: isSmallScreen ? 6 : 10),
+
+                              // Timer and Deck Row
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Expanded(
+                                      child: _buildTimer(gameController, isSmallScreen)),
+                                  SizedBox(width: isSmallScreen ? 6 : 8),
+                                  Expanded(
+                                      child: _buildDeck(gameController, isSmallScreen)),
+                                ],
+                              ),
+                              SizedBox(height: isSmallScreen ? 6 : 10),
+
+                              // Game Board
+                              Card(
+                                elevation: 8,
+                                color: Colors.white.withOpacity(0.95),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18)),
+                                child: Padding(
+                                  padding: EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
+                                  child: GameBoard(),
+                                ),
+                              ),
+
+                              // Player Hand Area
+                              SizedBox(height: isSmallScreen ? 6 : 10),
+                              _buildPlayerHandArea(
+                                  gameController, context, isSmallScreen),
+
+                              // Action Buttons
+                              SizedBox(height: isSmallScreen ? 8 : 14),
+                              _buildActionButtons(
+                                  gameController, isMyTurn, context, isSmallScreen),
+                              SizedBox(height: isSmallScreen ? 6 : 10),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: 22,
-            left: 22,
-            child: FloatingActionButton.small(
-              heroTag: 'homeBtn',
-              backgroundColor: Colors.white.withOpacity(0.9),
-              foregroundColor: Colors.deepPurple,
-              elevation: 4,
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Icon(Icons.home, size: 20),
+            Positioned(
+              bottom: 22,
+              left: 22,
+              child: FloatingActionButton.small(
+                heroTag: 'homeBtn',
+                backgroundColor: Colors.white.withOpacity(0.9),
+                foregroundColor: Colors.deepPurple,
+                elevation: 4,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Icon(Icons.home, size: 20),
+              ),
             ),
-          ),
-          // Debug audio button
-          Positioned(
-            bottom: 22,
-            right: 22,
-            child: FloatingActionButton.small(
-              heroTag: 'audioBtn',
-              backgroundColor: _isBackgroundMusicMuted ? Colors.red.withOpacity(0.9) : Colors.green.withOpacity(0.9),
-              foregroundColor: Colors.white,
-              elevation: 4,
-              onPressed: () {
-                _toggleBackgroundMusic();
-              },
-              child: Icon(_isBackgroundMusicMuted ? Icons.volume_off : Icons.volume_up, size: 20),
+            // Debug audio button
+            Positioned(
+              bottom: 22,
+              right: 22,
+              child: FloatingActionButton.small(
+                heroTag: 'audioBtn',
+                backgroundColor: _backgroundMusicVolume > 0 || _timeRunningOutVolume > 0 ? Colors.green.withOpacity(0.9) : Colors.red.withOpacity(0.9),
+                foregroundColor: Colors.white,
+                elevation: 4,
+                onPressed: () {
+                  setState(() {
+                    _showVolumeSliders = !_showVolumeSliders;
+                  });
+                },
+                child: Icon(_backgroundMusicVolume > 0 || _timeRunningOutVolume > 0 ? Icons.volume_up : Icons.volume_off, size: 20),
+              ),
             ),
-          ),
-        ],
+            // Volume Sliders
+            if (_showVolumeSliders)
+              Positioned(
+                bottom: 70,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      _buildVolumeSliderColumn(
+                        'Music',
+                        Icons.music_note,
+                        _backgroundMusicVolume,
+                        (newVolume) {
+                          setState(() {
+                            _backgroundMusicVolume = newVolume;
+                          });
+                          _backgroundPlayer?.setVolume(newVolume);
+                        },
+                      ),
+                      const SizedBox(width: 16),
+                      _buildVolumeSliderColumn(
+                        'Effects',
+                        Icons.timer,
+                        _timeRunningOutVolume,
+                        (newVolume) {
+                          setState(() {
+                            _timeRunningOutVolume = newVolume;
+                          });
+                          _timeRunningOutPlayer?.setVolume(newVolume);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1647,7 +1707,7 @@ class _GameScreenState extends State<GameScreen> {
       if (_backgroundPlayer != null) {
         await _backgroundPlayer!.play(AssetSource('sounds/bonusBackGroundMusic.mp3'));
         await _backgroundPlayer!.setReleaseMode(ReleaseMode.loop);
-        await _backgroundPlayer!.setVolume(0.3);
+        await _backgroundPlayer!.setVolume(_backgroundMusicVolume);
         print('Background music started successfully');
       } else {
         print('Background player is null');
@@ -1697,23 +1757,31 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
-  void _toggleBackgroundMusic() async {
-    try {
-      if (_isBackgroundMusicMuted) {
-        // Unmute
-        await _backgroundPlayer?.setVolume(0.3);
-        _isBackgroundMusicMuted = false;
-        print('Background music unmuted');
-      } else {
-        // Mute
-        await _backgroundPlayer?.setVolume(0.0);
-        _isBackgroundMusicMuted = true;
-        print('Background music muted');
-      }
-      setState(() {}); // Update UI to show current state
-    } catch (e) {
-      print('Could not toggle background music: $e');
-    }
+  Widget _buildVolumeSliderColumn(String title, IconData icon, double volume,
+      ValueChanged<double> onChanged) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.deepPurple),
+        const SizedBox(height: 4),
+        Text(title,
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 120,
+          child: RotatedBox(
+            quarterTurns: 3,
+            child: Slider(
+              value: volume,
+              onChanged: onChanged,
+              activeColor: Colors.deepPurple,
+              inactiveColor: Colors.deepPurple[100],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _startUITimer() {

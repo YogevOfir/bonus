@@ -46,6 +46,7 @@ class GameController extends ChangeNotifier {
   bool _isSynced = false;
   bool _firstMoveDone = false;
   int _firstPlayerId = 1;
+  Set<int> _lastTurnWordIndices = {};
 
   // Bonus State
   int _player1DoubleTurns = 0;
@@ -85,6 +86,7 @@ class GameController extends ChangeNotifier {
   bool get isSynced => _isSynced;
   bool get wordsLoaded => _validationService.wordsLoaded;
   List<Letter> get letterPool => _letterPool;
+  Set<int> get lastTurnWordIndices => _lastTurnWordIndices;
   int get remainingTime {
     if (_turnStartTimestamp == null) return 125;
     // In local games, offset is 0. In online games, it's calculated.
@@ -166,6 +168,7 @@ class GameController extends ChangeNotifier {
     _firstPlayerId = Random().nextBool() ? 1 : 2;
     _currentPlayer = _firstPlayerId;
     _firstMoveDone = false;
+    _lastTurnWordIndices.clear();
     _initializeLetterPool();
     _initializeBoard();
     _letterPool.shuffle();
@@ -184,6 +187,7 @@ class GameController extends ChangeNotifier {
     _firstPlayerId = Random().nextBool() ? 1 : 2;
     _currentPlayer = _firstPlayerId;
     _firstMoveDone = false;
+    _lastTurnWordIndices.clear();
     _initializeLetterPool();
     _initializeBoard();
     _letterPool.shuffle();
@@ -330,6 +334,12 @@ class GameController extends ChangeNotifier {
     print('Debug: Word list length: ${wordList.length}');
     print('Debug: Score result: ${scoreResult.score}');
 
+    _lastTurnWordIndices.clear();
+    for (final wordData in wordList) {
+      final indices = wordData['indices'] as List<int>;
+      _lastTurnWordIndices.addAll(indices);
+    }
+
     try {
       // Store turn results for both players to see
       _lastTurnResults = {
@@ -462,6 +472,7 @@ class GameController extends ChangeNotifier {
     
     // Clear any placed letters that might still be on the board
     _returnPlacedLettersToHand();
+    _lastTurnWordIndices.clear();
     
     // Switch to the other player
     _currentPlayer = (_currentPlayer == 1) ? 2 : 1;
@@ -670,6 +681,15 @@ class GameController extends ChangeNotifier {
     if (data['firstPlayerId'] != null && data['firstPlayerId'] != _firstPlayerId) {
       _firstPlayerId = data['firstPlayerId'];
       hasChanges = true;
+    }
+
+    if (data['lastTurnWordIndices'] != null) {
+      final indicesFromDb = List<int>.from(data['lastTurnWordIndices']);
+      if (Set.from(indicesFromDb).difference(_lastTurnWordIndices).isNotEmpty ||
+          _lastTurnWordIndices.difference(Set.from(indicesFromDb)).isNotEmpty) {
+        _lastTurnWordIndices = Set.from(indicesFromDb);
+        hasChanges = true;
+      }
     }
 
     // Handle turn results - show to both players
@@ -1142,6 +1162,7 @@ class GameController extends ChangeNotifier {
       player1QuadTurns: _player1QuadTurns,
       player2QuadTurns: _player2QuadTurns,
       firstMoveDone: _firstMoveDone,
+      lastTurnWordIndices: _lastTurnWordIndices.toList(),
     );
   }
 
@@ -1177,6 +1198,7 @@ class GameController extends ChangeNotifier {
           player1Replacements: _player1Replacements,
           player2Replacements: _player2Replacements,
           lastTurnResults: _lastTurnResults,
+          lastTurnWordIndices: _lastTurnWordIndices.toList(),
         );
       }
     });

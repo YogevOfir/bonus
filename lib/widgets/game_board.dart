@@ -12,6 +12,7 @@ class GameBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final gameController = Provider.of<GameController>(context);
     final board = gameController.board;
+    final lastTurnWordIndices = gameController.lastTurnWordIndices;
 
     return Container(
       decoration: BoxDecoration(
@@ -39,6 +40,7 @@ class GameBoard extends StatelessWidget {
           final isPermanent = tile?.isPermanent ?? false;
           final bonusInfo = tile?.bonus;
           final isPlayable = gameController.isPlayableTile(index);
+          final wasInLastTurnWord = lastTurnWordIndices.contains(index);
 
           Widget tileContent;
           if (letter != null) {
@@ -51,6 +53,7 @@ class GameBoard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.grey[400]!.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(12),
+                  border: wasInLastTurnWord ? Border.all(color: Colors.blue.shade700, width: 1.5) : null,
                 ),
                 child: letterTile,
               );
