@@ -60,24 +60,24 @@ class DefaultFirebaseOptions {
     storageBucket: 'bonusgame-52eb6.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
+    static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCc3t1QjSS4uzBgwRyZW-Ywr_Iu-HoLIx0',
-    appId: '1:460105482088:ios:26dcd4134e12374f91a0dd',
+    appId: '1:460105482088:ios:483b014765e4f0f991a0dd',
     messagingSenderId: '460105482088',
     projectId: 'bonusgame-52eb6',
     databaseURL: 'https://bonusgame-52eb6-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'bonusgame-52eb6.firebasestorage.app',
-    iosBundleId: 'com.example.bonus',
+    iosBundleId: 'com.yogevofir.bonus',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCc3t1QjSS4uzBgwRyZW-Ywr_Iu-HoLIx0',
-    appId: '1:460105482088:ios:26dcd4134e12374f91a0dd',
+    appId: '1:460105482088:ios:483b014765e4f0f991a0dd',
     messagingSenderId: '460105482088',
     projectId: 'bonusgame-52eb6',
     databaseURL: 'https://bonusgame-52eb6-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'bonusgame-52eb6.firebasestorage.app',
-    iosBundleId: 'com.example.bonus',
+    iosBundleId: 'com.yogevofir.bonus',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
