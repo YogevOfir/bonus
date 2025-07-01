@@ -2,7 +2,7 @@
     <application
         android:label="bonus"
         android:name="${applicationName}"
-        android:icon="@mipmap/bonus_logo">
+        android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"
