@@ -759,7 +759,9 @@ class _GameScreenState extends State<GameScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: hand.map((letter) {
-                final letterTile = LetterTile(letter: letter);
+                final gameController = Provider.of<GameController>(context, listen: false);
+                final isReplacement = gameController.replacedPermanentLetter == letter;
+                final letterTile = LetterTile(letter: letter, isReplacement: isReplacement);
                 return Padding(
                   padding: EdgeInsets.symmetric(
                       horizontal: isSmallScreen ? 2.0 : 4.0),

@@ -44,43 +44,77 @@ class GameBoard extends StatelessWidget {
 
           Widget tileContent;
           if (letter != null) {
+            // Determine if this is the replacing letter (on board)
+            final isReplacingLetter = gameController.replacedPermanentIndex == index && gameController.replacementLetter == letter;
             final letterTile = LetterTile(
               letter: letter,
               isPermanent: isPermanent,
+              isReplacement: isReplacingLetter,
             );
             if (isPermanent) {
-              tileContent = Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[400]!.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
-                  border: wasInLastTurnWord ? Border.all(color: Colors.blue.shade700, width: 1.5) : null,
-                ),
-                child: letterTile,
+              // Allow dropping a hand letter to replace this permanent letter if no replacement this turn
+              final canReplace = !gameController.hasReplacedPermanentThisTurn;
+              tileContent = DragTarget<DraggableLetter>(
+                builder: (context, candidateData, rejectedData) {
+                  return Opacity(
+                    opacity: canReplace ? 0.85 : 1.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400]!.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(12),
+                        border: wasInLastTurnWord ? Border.all(color: Colors.blue.shade700, width: 1.5) : null,
+                        boxShadow: canReplace && candidateData.isNotEmpty
+                            ? [BoxShadow(color: Colors.green.withOpacity(0.3), blurRadius: 8)]
+                            : [],
+                      ),
+                      child: letterTile,
+                    ),
+                  );
+                },
+                onWillAccept: (data) {
+                  // Only allow hand letter, only if no replacement this turn
+                  return canReplace && data?.origin == LetterOrigin.hand;
+                },
+                onAccept: (draggableLetter) {
+                  gameController.moveLetter(draggableLetter, index);
+                },
               );
             } else {
-              tileContent = Draggable<DraggableLetter>(
-                data: DraggableLetter(
-                  letter: letter,
-                  origin: LetterOrigin.board,
-                  fromIndex: index,
-                ),
-                feedback: Material(
-                  elevation: 8.0,
-                  borderRadius: BorderRadius.circular(12),
-                  child: letterTile,
-                ),
-                childWhenDragging: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    color: Colors.grey.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(12),
+              // Prevent moving the replacing letter until replacement is undone or turn ends
+              if (isReplacingLetter) {
+                tileContent = Stack(
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: letterTile,
+                    ),
+                  ],
+                );
+              } else {
+                tileContent = Draggable<DraggableLetter>(
+                  data: DraggableLetter(
+                    letter: letter,
+                    origin: LetterOrigin.board,
+                    fromIndex: index,
                   ),
-                ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: letterTile,
-                ),
-              );
+                  feedback: Material(
+                    elevation: 8.0,
+                    borderRadius: BorderRadius.circular(12),
+                    child: letterTile,
+                  ),
+                  childWhenDragging: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      color: Colors.grey.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: letterTile,
+                  ),
+                );
+              }
             }
           } else if (!isPlayable) {
             // Always show bonuses, even if not playable
@@ -210,10 +244,20 @@ class GameBoard extends StatelessWidget {
               return tileContent;
             },
             onWillAccept: (data) {
+              // Allow undoing replacement by dragging the replaced permanent letter from hand
+              if (gameController.replacedPermanentIndex == index && data?.origin == LetterOrigin.hand && data?.letter == gameController.replacedPermanentLetter) {
+                return true;
+              }
+              // Normal placement: only allow if not permanent and empty or moving within same spot
               if (board[index]?.isPermanent == true) return false;
               return board[index]?.letter == null || data?.fromIndex == index;
             },
             onAccept: (draggableLetter) {
+              // Undo replacement if dragging replaced permanent letter back
+              if (gameController.replacedPermanentIndex == index && draggableLetter.origin == LetterOrigin.hand && draggableLetter.letter == gameController.replacedPermanentLetter) {
+                gameController.moveLetter(draggableLetter, index);
+                return;
+              }
               // First move the blank tile to the board
               gameController.moveLetter(draggableLetter, index);
 

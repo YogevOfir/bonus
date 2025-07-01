@@ -68,6 +68,17 @@ class GameController extends ChangeNotifier {
   Timer? _updateDebounceTimer;
   bool _pendingUpdate = false;
 
+  // Replacement state for current turn
+  int? _replacedPermanentIndex;
+  Letter? _replacedPermanentLetter;
+  Letter? _replacementLetter;
+
+  int? get replacedPermanentIndex => _replacedPermanentIndex;
+  Letter? get replacedPermanentLetter => _replacedPermanentLetter;
+  Letter? get replacementLetter => _replacementLetter;
+
+  bool get hasReplacedPermanentThisTurn => _replacedPermanentIndex != null;
+
   void Function(String)? onError;
   void Function()? onPlayerLeft;
   void Function()? onTurnPassedDueToTimeout;
@@ -293,6 +304,12 @@ class GameController extends ChangeNotifier {
       return;
     }
 
+    // Enforce: if a permanent letter was replaced, at least one more letter must be placed
+    if (_replacedPermanentIndex != null && _placedThisTurn.length <= 1) {
+      onError?.call('If you replaced a permanent letter, you must place at least one more letter on the grid.');
+      return;
+    }
+
     if (!skipValidation) {
       if (!_rulesService.validatePlacementTouchesExisting(
           board: _board, placedThisTurn: _placedThisTurn)) {
@@ -464,6 +481,11 @@ class GameController extends ChangeNotifier {
       }
     }
 
+    // At end of turn, clear replacement state so replaced icons and indexes are reset
+    _replacedPermanentIndex = null;
+    _replacedPermanentLetter = null;
+    _replacementLetter = null;
+
     await _updateRepository();
     notifyListeners();
   }
@@ -497,8 +519,32 @@ class GameController extends ChangeNotifier {
       onError?.call("It's not your turn!");
       return;
     }
-    if (_board[toIndex]?.isPermanent == true) return;
-
+    // If trying to replace a permanent letter
+    if (_board[toIndex]?.isPermanent == true) {
+      if (_replacedPermanentIndex != null) return; // Only one per turn
+      if (draggableLetter.origin == LetterOrigin.hand) {
+        // Replace permanent letter
+        if (replacePermanentLetter(toIndex, draggableLetter.letter)) {
+          final hand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
+          hand.remove(draggableLetter.letter);
+        }
+      }
+      return;
+    }
+    // If trying to undo replacement by dragging permanent letter from hand
+    if (_replacedPermanentIndex == toIndex && draggableLetter.origin == LetterOrigin.hand && draggableLetter.letter == _replacedPermanentLetter) {
+      if (undoReplacePermanentLetter(toIndex)) {
+        final hand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
+        hand.remove(draggableLetter.letter);
+      }
+      return;
+    }
+    // Prevent placing the replaced permanent letter anywhere except its original position
+    if (_replacedPermanentIndex != null && draggableLetter.origin == LetterOrigin.hand && draggableLetter.letter == _replacedPermanentLetter && toIndex != _replacedPermanentIndex) {
+      // Do nothing, illegal move
+      return;
+    }
+    // Normal move logic
     if (draggableLetter.origin == LetterOrigin.board) {
       if (_board[draggableLetter.fromIndex!]?.isPermanent == true) return;
       _board[draggableLetter.fromIndex!]!.letter = null;
@@ -507,7 +553,6 @@ class GameController extends ChangeNotifier {
       final hand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
       hand.remove(draggableLetter.letter);
     }
-
     _board[toIndex]!.letter = draggableLetter.letter;
     _placedThisTurn.add(toIndex);
     notifyListeners();
@@ -1042,7 +1087,10 @@ class GameController extends ChangeNotifier {
       onError?.call("It's not your turn!");
       return;
     }
-    
+    // Undo replacement if active before skipping
+    if (_replacedPermanentIndex != null) {
+      undoReplacePermanentLetter(_replacedPermanentIndex!);
+    }
     // Return placed letters to hand before skipping
     _returnPlacedLettersToHand();
     
@@ -1206,5 +1254,54 @@ class GameController extends ChangeNotifier {
         );
       }
     });
+  }
+
+  // Call this to attempt to replace a permanent letter
+  bool replacePermanentLetter(int boardIndex, Letter newLetter) {
+    if (_replacedPermanentIndex != null) return false; // Only one per turn
+    final tile = _board[boardIndex];
+    if (tile == null || !tile.isPermanent || tile.letter == null) return false;
+    _replacedPermanentIndex = boardIndex;
+    _replacedPermanentLetter = tile.letter;
+    _replacementLetter = newLetter;
+    // Remove permanent letter from board, add to hand
+    tile.letter = newLetter;
+    tile.isPermanent = false;
+    final hand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
+    hand.add(_replacedPermanentLetter!);
+    _placedThisTurn.add(boardIndex);
+    notifyListeners();
+    return true;
+  }
+
+  // Undo the replacement if the player drags the permanent letter back
+  bool undoReplacePermanentLetter(int boardIndex) {
+    if (_replacedPermanentIndex != boardIndex) return false;
+    final tile = _board[boardIndex];
+    if (tile == null) return false;
+    final hand = (_currentPlayer == 1) ? _player1Hand : _player2Hand;
+    // Remove the replacement letter from the board, add to hand
+    if (_replacementLetter != null) {
+      hand.add(_replacementLetter!);
+    }
+    // Restore the permanent letter to the board, remove from hand
+    tile.letter = _replacedPermanentLetter;
+    tile.isPermanent = true;
+    hand.remove(_replacedPermanentLetter);
+    _placedThisTurn.remove(boardIndex);
+    _replacedPermanentIndex = null;
+    _replacedPermanentLetter = null;
+    _replacementLetter = null;
+    notifyListeners();
+    return true;
+  }
+
+  // Enforce that if a replacement was made, at least one more letter must be placed
+  bool get canEndTurn {
+    if (_replacedPermanentIndex != null) {
+      // Must have placed at least one other letter
+      return _placedThisTurn.length > 1;
+    }
+    return _placedThisTurn.isNotEmpty;
   }
 }
