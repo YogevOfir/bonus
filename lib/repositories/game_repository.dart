@@ -25,6 +25,7 @@ abstract class GameRepository {
     int? player2Replacements,
     Map<String, dynamic>? lastTurnResults,
     List<int>? lastTurnWordIndices,
+    String? emojiEvent,
   });
 
   Future<String> createRoom(String player1Name);

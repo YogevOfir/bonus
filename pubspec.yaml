@@ -41,6 +41,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
   shared_preferences: ^2.5.3
+  lottie: ^3.3.1
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.1
@@ -81,6 +82,7 @@ flutter:
     - assets/bonusLogo.png
     - assets/sounds/bonusBackGroundMusic.mp3
     - assets/sounds/timeRunningOut.mp3
+    - assets/animated_emojis/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

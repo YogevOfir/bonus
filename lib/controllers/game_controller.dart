@@ -152,6 +152,12 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  Map<String, dynamic>? _lastEmojiEvent;
+  Map<String, dynamic>? get lastEmojiEvent => _lastEmojiEvent;
+  Timer? _emojiTimer;
+
+  String? _lastProcessedEmojiKey;
+
   GameController({GameRepository? repository}) {
     _validationService = WordValidationService();
     _scoreService = ScoreService(_validationService);
@@ -755,6 +761,30 @@ class GameController extends ChangeNotifier {
       }
     }
 
+    if (data.containsKey('emojiEvent')) {
+      final event = data['emojiEvent'] as String?;
+      if (event != null && event.contains('|')) {
+        final parts = event.split('|');
+        final emojiKey = event; // Use the raw event string as a key
+        if (_lastProcessedEmojiKey != emojiKey) {
+          _lastEmojiEvent = {'emoji': parts[0], 'sender': int.tryParse(parts[1])};
+          _lastProcessedEmojiKey = emojiKey;
+          // Clear emojiEvent from the game state after displaying
+          if (_roomID != null) {
+            _repository.updateGameState(_roomID!, emojiEvent: null);
+          }
+        }
+      } else {
+        _lastEmojiEvent = null;
+      }
+      notifyListeners();
+      _emojiTimer?.cancel();
+      _emojiTimer = Timer(const Duration(seconds: 2), () {
+        _lastEmojiEvent = null;
+        notifyListeners();
+      });
+    }
+
     if (!_isSynced) {
       _isSynced = true;
       hasChanges = true;
@@ -1261,6 +1291,11 @@ class GameController extends ChangeNotifier {
     if (_replacedPermanentIndex != null) return false; // Only one per turn
     final tile = _board[boardIndex];
     if (tile == null || !tile.isPermanent || tile.letter == null) return false;
+    // Prevent replacing with the same letter
+    if (tile.letter!.letter == newLetter.letter) {
+      onError?.call('Cannot replace a permanent letter with the same letter!');
+      return false;
+    }
     _replacedPermanentIndex = boardIndex;
     _replacedPermanentLetter = tile.letter;
     _replacementLetter = newLetter;
@@ -1303,5 +1338,12 @@ class GameController extends ChangeNotifier {
       return _placedThisTurn.length > 1;
     }
     return _placedThisTurn.isNotEmpty;
+  }
+
+  void sendEmoji(String emoji) async {
+    if (_roomID != null) {
+      final senderId = _localPlayerId;
+      await _repository.updateGameState(_roomID!, emojiEvent: '$emoji|$senderId');
+    }
   }
 }

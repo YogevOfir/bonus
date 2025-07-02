@@ -31,9 +31,12 @@ class LetterTile extends StatelessWidget {
           child: Stack(
             children: [
               Center(
-                child: Text(
-                  isBlank ? '🤡' : letter.letter,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    isBlank ? '🤡' : letter.letter,
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               if (!isBlank)

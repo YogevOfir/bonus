@@ -7,6 +7,7 @@ import 'package:bonus/widgets/letter_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:lottie/lottie.dart';
 import 'dart:async';
 
 import '../services/preferences_service.dart';
@@ -282,48 +283,89 @@ class _GameScreenState extends State<GameScreen> {
                       child: Center(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: 600),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Stack(
                             children: [
-                              // Score Board
-                              _buildScoreBoard(gameController, isSmallScreen),
-                              SizedBox(height: isSmallScreen ? 6 : 10),
-
-                              // Timer and Deck Row
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Expanded(
-                                      child: _buildTimer(gameController, isSmallScreen)),
-                                  SizedBox(width: isSmallScreen ? 6 : 8),
-                                  Expanded(
-                                      child: _buildDeck(gameController, isSmallScreen)),
+                                  // Score Board
+                                  _buildScoreBoard(gameController, isSmallScreen),
+                                  SizedBox(height: isSmallScreen ? 6 : 10),
+
+                                  // Timer and Deck Row
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      Expanded(
+                                          child: _buildTimer(gameController, isSmallScreen)),
+                                      SizedBox(width: isSmallScreen ? 6 : 8),
+                                      Expanded(
+                                          child: _buildDeck(gameController, isSmallScreen)),
+                                    ],
+                                  ),
+                                  SizedBox(height: isSmallScreen ? 6 : 10),
+
+                                  // Game Board
+                                  Card(
+                                    elevation: 8,
+                                    color: Colors.white.withOpacity(0.95),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(18)),
+                                    child: Padding(
+                                      padding: EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
+                                      child: GameBoard(),
+                                    ),
+                                  ),
+
+                                  // Player Hand Area
+                                  SizedBox(height: isSmallScreen ? 6 : 10),
+                                  _buildPlayerHandArea(
+                                      gameController, context, isSmallScreen),
+
+                                  // Action Buttons
+                                  SizedBox(height: isSmallScreen ? 8 : 14),
+                                  _buildActionButtons(
+                                      gameController, isMyTurn, context, isSmallScreen),
+                                  SizedBox(height: isSmallScreen ? 6 : 10),
                                 ],
                               ),
-                              SizedBox(height: isSmallScreen ? 6 : 10),
-
-                              // Game Board
-                              Card(
-                                elevation: 8,
-                                color: Colors.white.withOpacity(0.95),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18)),
-                                child: Padding(
-                                  padding: EdgeInsets.all(isSmallScreen ? 3.0 : 6.0),
-                                  child: GameBoard(),
+                              // Floating emoji overlay
+                              if (gameController.lastEmojiEvent != null)
+                                Positioned(
+                                  top: 8.0,
+                                  left: gameController.lastEmojiEvent!['sender'] == 1 ? 100.0 : null,
+                                  right: gameController.lastEmojiEvent!['sender'] == 2 ? 100.0 : null,
+                                  child: AnimatedOpacity(
+                                    opacity: 1.0,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                                        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.85),
+                                          borderRadius: BorderRadius.circular(20),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black12,
+                                              blurRadius: 8,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: gameController.lastEmojiEvent!['emoji'] != null
+                                            ? Lottie.asset(
+                                                'assets/animated_emojis/${gameController.lastEmojiEvent!['emoji']}.json',
+                                                width: isSmallScreen ? 40 : 60,
+                                                height: isSmallScreen ? 40 : 60,
+                                                repeat: false,
+                                              )
+                                            : SizedBox.shrink(),
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-
-                              // Player Hand Area
-                              SizedBox(height: isSmallScreen ? 6 : 10),
-                              _buildPlayerHandArea(
-                                  gameController, context, isSmallScreen),
-
-                              // Action Buttons
-                              SizedBox(height: isSmallScreen ? 8 : 14),
-                              _buildActionButtons(
-                                  gameController, isMyTurn, context, isSmallScreen),
-                              SizedBox(height: isSmallScreen ? 6 : 10),
                             ],
                           ),
                         ),
@@ -365,7 +407,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
             // Volume Sliders
-            if (_showVolumeSliders)
+            if (_showVolumeSliders) 
               Positioned(
                 bottom: 70,
                 right: 10,
@@ -413,6 +455,87 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
               ),
+
+            // Floating emoji button
+            Positioned(
+              bottom: 90,
+              right: 22,
+              child: FloatingActionButton.small(
+                heroTag: 'emojiBtn',
+                backgroundColor: Colors.white.withOpacity(0.9),
+                foregroundColor: Colors.orange,
+                elevation: 4,
+                onPressed: () async {
+                  final emojiNames = [
+                    'rofl', 'cry', 'screaming', 'cursing', 'melting', 'mind-blown',
+                    'fire', 'kiss', 'sunglasses', 'sleep', 'score100'
+                  ];
+                  final emoji = await showModalBottomSheet<String>(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    isDismissible: true,
+                    enableDrag: true,
+                    builder: (context) {
+                      final width = MediaQuery.of(context).size.width;
+                      return Center(
+                        child: Container(
+                          width: width > 400 ? 360 : width * 0.95,
+                          margin: const EdgeInsets.only(bottom: 32, top: 32),
+                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 16,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Send Emoji', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                              const SizedBox(height: 16),
+                              GridView.count(
+                                crossAxisCount: 4,
+                                shrinkWrap: true,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                physics: NeverScrollableScrollPhysics(),
+                                children: emojiNames.map((name) => GestureDetector(
+                                  onTap: () => Navigator.of(context).pop(name),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepPurple.withOpacity(0.07),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Center(
+                                      child: Lottie.asset(
+                                        'assets/animated_emojis/$name.json',
+                                        width: 48,
+                                        height: 48,
+                                        repeat: false,
+                                      ),
+                                    ),
+                                  ),
+                                )).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                  if (emoji != null) {
+                    Provider.of<GameController>(context, listen: false).sendEmoji(emoji);
+                  }
+                },
+                child: const Icon(Icons.emoji_emotions, size: 22),
+              ),
+            ),
           ],
         ),
       ),
