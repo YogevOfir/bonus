@@ -11,16 +11,19 @@ import 'package:lottie/lottie.dart';
 import 'dart:async';
 
 import '../services/preferences_service.dart';
+import '../strings.dart';
 
 class GameScreen extends StatefulWidget {
   final bool isAiGame;
   final String roomID;
   final int localPlayerId;
+  final bool isHebrew;
   const GameScreen(
       {super.key,
       this.isAiGame = false,
       required this.roomID,
-      this.localPlayerId = 1});
+      this.localPlayerId = 1,
+      this.isHebrew = false});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -63,14 +66,14 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Icon(Icons.info_outline, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Player Left',
+              Text(Strings.get('playerLeftTitle', isHebrew: widget.isHebrew),
                   style: TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text('The other player has left the game.',
+            child: Text(Strings.get('playerLeftMessage', isHebrew: widget.isHebrew),
                 style: TextStyle(fontSize: 18)),
           ),
           actions: [
@@ -86,7 +89,7 @@ class _GameScreenState extends State<GameScreen> {
                 Navigator.of(context).pop();
                 // Navigator.of(context).popUntil((route) => route.isFirst);
               },
-              child: Text('OK'),
+              child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
             ),
           ],
         ),
@@ -105,14 +108,14 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Icon(Icons.info_outline, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Turn Skipped',
+              Text(Strings.get('turnSkippedTitle', isHebrew: widget.isHebrew),
                   style: TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text('You did nothing and your turn was passed.',
+            child: Text(Strings.get('turnSkippedMessage', isHebrew: widget.isHebrew),
                 style: TextStyle(fontSize: 18)),
           ),
           actions: [
@@ -125,7 +128,7 @@ class _GameScreenState extends State<GameScreen> {
                 textStyle: TextStyle(fontWeight: FontWeight.bold),
               ),
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
+              child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
             ),
           ],
         ),
@@ -237,8 +240,8 @@ class _GameScreenState extends State<GameScreen> {
                               SizedBox(width: 8),
                               Text(
                                 msg == "Turn skipped!" || msg == "Time's up! Your turn was skipped." || msg == "The other player skipped their turn."
-                                    ? 'Turn Skipped'
-                                    : 'Invalid Move',
+                                    ? Strings.get('turnSkipped', isHebrew: widget.isHebrew)
+                                    : Strings.get('invalidMove', isHebrew: widget.isHebrew),
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.deepPurple),
@@ -259,7 +262,7 @@ class _GameScreenState extends State<GameScreen> {
                                 textStyle: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               onPressed: () => Navigator.of(context).pop(),
-                              child: Text('OK'),
+                              child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
                             ),
                           ],
                         ),
@@ -427,7 +430,7 @@ class _GameScreenState extends State<GameScreen> {
                   child: Row(
                     children: [
                       _buildVolumeSliderColumn(
-                        'Music',
+                        Strings.get('music', isHebrew: widget.isHebrew),
                         Icons.music_note,
                         _backgroundMusicVolume,
                         (newVolume) {
@@ -440,7 +443,7 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                       const SizedBox(width: 16),
                       _buildVolumeSliderColumn(
-                        'Effects',
+                        Strings.get('effects', isHebrew: widget.isHebrew),
                         Icons.timer,
                         _timeRunningOutVolume,
                         (newVolume) {
@@ -497,7 +500,7 @@ class _GameScreenState extends State<GameScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('Send Emoji', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                              Text(Strings.get('sendEmoji', isHebrew: widget.isHebrew), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                               const SizedBox(height: 16),
                               GridView.count(
                                 crossAxisCount: 4,
@@ -621,7 +624,7 @@ class _GameScreenState extends State<GameScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Turn',
+                  Strings.get('turn', isHebrew: widget.isHebrew),
                   style: TextStyle(
                       fontSize: isSmallScreen ? 12 : 14, color: Colors.grey),
                 ),
@@ -643,7 +646,7 @@ class _GameScreenState extends State<GameScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      widget.isAiGame ? 'Computer' : gameController.player2Name,
+                      widget.isAiGame ? Strings.get('computer', isHebrew: widget.isHebrew) : gameController.player2Name,
                       style: TextStyle(
                         fontSize: isSmallScreen ? 14 : 16,
                         fontWeight: FontWeight.bold,
@@ -727,50 +730,102 @@ class _GameScreenState extends State<GameScreen> {
                 : isLowTime 
                     ? Colors.orange[100] 
                     : Colors.deepPurple[100],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-            vertical: isSmallScreen ? 4 : 6,
-            horizontal: isSmallScreen ? 8 : 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-                  AnimatedSwitcher(
-                    duration: Duration(milliseconds: 300),
-                    child: Icon(
-                      isCriticalTime ? Icons.warning : Icons.timer,
-                      key: ValueKey(isCriticalTime),
-                      color: isCriticalTime 
-                          ? Colors.red[700] 
-                          : isLowTime 
-                              ? Colors.orange[700] 
-                              : Colors.deepPurple,
-                      size: isSmallScreen ? 16 : 20,
-                    ),
-                  ),
-            SizedBox(width: isSmallScreen ? 3 : 4),
-            Text('Time: ',
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                  vertical: isSmallScreen ? 4 : 6,
+                  horizontal: isSmallScreen ? 8 : 12),
+              child: Directionality(
+                textDirection: widget.isHebrew ? TextDirection.rtl : TextDirection.ltr,
+                child: Row(
+                  mainAxisAlignment: widget.isHebrew ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    if (widget.isHebrew)
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedSwitcher(
+                                duration: Duration(milliseconds: 300),
+                                child: Icon(
+                                  isCriticalTime ? Icons.warning : Icons.timer,
+                                  key: ValueKey(isCriticalTime),
+                                  color: isCriticalTime 
+                                      ? Colors.red[700] 
+                                      : isLowTime 
+                                          ? Colors.orange[700] 
+                                          : Colors.deepPurple,
+                                  size: isSmallScreen ? 16 : 20,
+                                ),
+                              ),
+                              SizedBox(width: isSmallScreen ? 3 : 4),
+                              Text(Strings.get('time', isHebrew: widget.isHebrew),
+                                  style: TextStyle(
+                                      fontSize: isSmallScreen ? 12 : 14,
+                                      color: isCriticalTime 
+                                          ? Colors.red[900] 
+                                          : isLowTime 
+                                              ? Colors.orange[900] 
+                                              : Colors.deepPurple[900])),
+                              AnimatedDefaultTextStyle(
+                                duration: Duration(milliseconds: 300),
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 14 : 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isCriticalTime 
+                                      ? Colors.red[700] 
+                                      : isLowTime 
+                                          ? Colors.orange[700] 
+                                          : Colors.deepPurple[700],
+                                ),
+                                child: Text('$remainingTime'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else ...[
+                      AnimatedSwitcher(
+                        duration: Duration(milliseconds: 300),
+                        child: Icon(
+                          isCriticalTime ? Icons.warning : Icons.timer,
+                          key: ValueKey(isCriticalTime),
                           color: isCriticalTime 
-                              ? Colors.red[900] 
+                              ? Colors.red[700] 
                               : isLowTime 
-                                  ? Colors.orange[900] 
-                                  : Colors.deepPurple[900])),
-                  AnimatedDefaultTextStyle(
-                    duration: Duration(milliseconds: 300),
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 14 : 16,
-                      fontWeight: FontWeight.bold,
-                      color: isCriticalTime 
-                          ? Colors.red[700] 
-                          : isLowTime 
-                              ? Colors.orange[700] 
-                              : Colors.deepPurple[700],
-                    ),
-                    child: Text('$remainingTime'),
-                  ),
-                ],
+                                  ? Colors.orange[700] 
+                                  : Colors.deepPurple,
+                          size: isSmallScreen ? 16 : 20,
+                        ),
+                      ),
+                      SizedBox(width: isSmallScreen ? 3 : 4),
+                      Text(Strings.get('time', isHebrew: widget.isHebrew),
+                          style: TextStyle(
+                              fontSize: isSmallScreen ? 12 : 14,
+                              color: isCriticalTime 
+                                  ? Colors.red[900] 
+                                  : isLowTime 
+                                      ? Colors.orange[900] 
+                                      : Colors.deepPurple[900])),
+                      AnimatedDefaultTextStyle(
+                        duration: Duration(milliseconds: 300),
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 14 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: isCriticalTime 
+                              ? Colors.red[700] 
+                              : isLowTime 
+                                  ? Colors.orange[700] 
+                                  : Colors.deepPurple[700],
+                        ),
+                        child: Text('$remainingTime'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -787,21 +842,49 @@ class _GameScreenState extends State<GameScreen> {
         padding: EdgeInsets.symmetric(
             vertical: isSmallScreen ? 4 : 6,
             horizontal: isSmallScreen ? 8 : 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.layers,
-                color: Colors.cyan, size: isSmallScreen ? 16 : 20),
-            SizedBox(width: isSmallScreen ? 3 : 4),
-            Text('Deck: ',
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 12 : 14,
-                    color: Colors.cyan[900])),
-            Text('${gameController.letterPool.length}',
-                style: TextStyle(
-                    fontSize: isSmallScreen ? 14 : 16,
-                    fontWeight: FontWeight.bold)),
-          ],
+        child: Directionality(
+          textDirection: widget.isHebrew ? TextDirection.rtl : TextDirection.ltr,
+          child: Row(
+            mainAxisAlignment: widget.isHebrew ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              if (widget.isHebrew)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.layers,
+                            color: Colors.cyan, size: isSmallScreen ? 16 : 20),
+                        SizedBox(width: isSmallScreen ? 3 : 4),
+                        Text(Strings.get('deck', isHebrew: widget.isHebrew),
+                            style: TextStyle(
+                                fontSize: isSmallScreen ? 12 : 14,
+                                color: Colors.cyan[900])),
+                        Text('${gameController.letterPool.length}',
+                            style: TextStyle(
+                                fontSize: isSmallScreen ? 14 : 16,
+                                fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Icon(Icons.layers,
+                    color: Colors.cyan, size: isSmallScreen ? 16 : 20),
+                SizedBox(width: isSmallScreen ? 3 : 4),
+                Text(Strings.get('deck', isHebrew: widget.isHebrew),
+                    style: TextStyle(
+                        fontSize: isSmallScreen ? 12 : 14,
+                        color: Colors.cyan[900])),
+                Text('${gameController.letterPool.length}',
+                    style: TextStyle(
+                        fontSize: isSmallScreen ? 14 : 16,
+                        fontWeight: FontWeight.bold)),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -830,10 +913,10 @@ class _GameScreenState extends State<GameScreen> {
       children: [
         Text(
           widget.isAiGame
-              ? 'Computer\'s Hand'
+              ? Strings.get('computersHand', isHebrew: widget.isHebrew)
               : (widget.localPlayerId == 2
-                  ? 'Your Hand'
-                  : "${gameController.player2Name}'s Hand"),
+                  ? Strings.get('yourHand', isHebrew: widget.isHebrew)
+                  : Strings.get('handOf', isHebrew: widget.isHebrew, params: {'name': gameController.player2Name})),
           style: TextStyle(
             fontSize: isSmallScreen ? 12 : 14,
             fontWeight: FontWeight.bold,
@@ -848,8 +931,8 @@ class _GameScreenState extends State<GameScreen> {
         SizedBox(height: isSmallScreen ? 8 : 12),
         Text(
           (widget.localPlayerId == 1
-              ? 'Your Hand'
-              : "${gameController.player1Name}'s Hand"),
+              ? Strings.get('yourHand', isHebrew: widget.isHebrew)
+              : Strings.get('handOf', isHebrew: widget.isHebrew, params: {'name': gameController.player1Name})),
           style: TextStyle(
             fontSize: isSmallScreen ? 12 : 14,
             fontWeight: FontWeight.bold,
@@ -929,9 +1012,9 @@ class _GameScreenState extends State<GameScreen> {
     if (gameController.player1Score > gameController.player2Score) {
       winner = gameController.player1Name;
     } else if (gameController.player2Score > gameController.player1Score) {
-      winner = widget.isAiGame ? 'Computer' : gameController.player2Name;
+      winner = widget.isAiGame ? Strings.get('computer', isHebrew: widget.isHebrew) : gameController.player2Name;
     } else {
-      winner = 'It\'s a tie!';
+      winner = Strings.get('tie', isHebrew: widget.isHebrew);
     }
 
     showDialog(
@@ -946,14 +1029,14 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Icon(Icons.info_outline, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Game Over',
+              Text(Strings.get('gameOverTitle', isHebrew: widget.isHebrew),
                   style: TextStyle(
                       fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text('$winner wins!', style: TextStyle(fontSize: 18)),
+            child: Text('$winner ${Strings.get('wins', isHebrew: widget.isHebrew)}!', style: TextStyle(fontSize: 18)),
           ),
           actions: <Widget>[
             TextButton(
@@ -968,7 +1051,7 @@ class _GameScreenState extends State<GameScreen> {
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
               },
-              child: Text('OK'),
+              child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
             ),
           ],
         );
@@ -980,13 +1063,13 @@ class _GameScreenState extends State<GameScreen> {
     if (bonus == null) return '';
     switch (bonus.type) {
       case BonusType.score:
-        return bonus.scoreValue != null ? '+${bonus.scoreValue}' : 'Score';
+        return bonus.scoreValue != null ? '+${bonus.scoreValue}' : Strings.get('score', isHebrew: widget.isHebrew);
       case BonusType.futureDouble:
-        return '2x Next 2 Turns';
+        return Strings.get('2xNext2Turns', isHebrew: widget.isHebrew);
       case BonusType.futureQuad:
-        return '4x Next Turn';
+        return Strings.get('4xNextTurn', isHebrew: widget.isHebrew);
       case BonusType.extraMove:
-        return 'Extra Move';
+        return Strings.get('extraMove', isHebrew: widget.isHebrew);
       // case BonusType.wordGame:
       //   return 'Word Game';
     }
@@ -995,13 +1078,13 @@ class _GameScreenState extends State<GameScreen> {
   String _bonusDescription(BonusInfo bonus) {
     switch (bonus.type) {
       case BonusType.score:
-        return 'Score: +${bonus.scoreValue}';
+        return Strings.get('scoreDescription', isHebrew: widget.isHebrew, params: {'score': bonus.scoreValue.toString()});
       case BonusType.futureDouble:
-        return 'X2 to the score of the next 2 turns';
+        return Strings.get('2xNext2TurnsDescription', isHebrew: widget.isHebrew);
       case BonusType.futureQuad:
-        return 'X4 to the score of the next turn';
+        return Strings.get('4xNextTurnDescription', isHebrew: widget.isHebrew);
       case BonusType.extraMove:
-        return 'Gives an extra move';
+        return Strings.get('extraMoveDescription', isHebrew: widget.isHebrew);
       // case BonusType.wordGame:
       //   return 'Word Game';
     }
@@ -1030,7 +1113,7 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               Icon(Icons.swap_horiz, color: Colors.orange, size: 28),
               SizedBox(width: 8),
-              Text('Replace Letter', 
+              Text(Strings.get('replaceLetter', isHebrew: widget.isHebrew), 
                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
             ],
           ),
@@ -1038,12 +1121,12 @@ class _GameScreenState extends State<GameScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Select a letter to replace',
+                Strings.get('selectALetterToReplace', isHebrew: widget.isHebrew),
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
               SizedBox(height: 4),
               Text(
-                'Cost: $replacementCost points (${replacementCount + 1}${_getOrdinalSuffix(replacementCount + 1)} replacement)',
+                '${Strings.get('cost', isHebrew: widget.isHebrew)}: $replacementCost ${Strings.get('points', isHebrew: widget.isHebrew)} (${replacementCount + 1}${_getOrdinalSuffix(replacementCount + 1)})',
                 style: TextStyle(
                   fontSize: 14, 
                   color: Colors.orange[700],
@@ -1052,7 +1135,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
               SizedBox(height: 8),
               Text(
-                'Your score: $currentScore',
+                '${Strings.get('yourScore', isHebrew: widget.isHebrew)}: $currentScore',
                 style: TextStyle(
                   fontSize: 14, 
                   color: currentScore >= replacementCost ? Colors.green : Colors.red,
@@ -1079,7 +1162,7 @@ class _GameScreenState extends State<GameScreen> {
                         if (success) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Letter replaced! -$replacementCost points'),
+                              content: Text('${Strings.get('letterReplaced', isHebrew: widget.isHebrew)} -$replacementCost ${Strings.get('points', isHebrew: widget.isHebrew)}'),
                               backgroundColor: Colors.orange,
                               duration: Duration(seconds: 2),
                             ),
@@ -1089,7 +1172,7 @@ class _GameScreenState extends State<GameScreen> {
                         print('Cannot afford replacement. Score: $currentScore, Cost: $replacementCost'); // Debug
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('You need at least $replacementCost points to replace a letter!'),
+                            content: Text('${Strings.get('youNeedAtLeast', isHebrew: widget.isHebrew)} $replacementCost ${Strings.get('pointsToReplaceALetter', isHebrew: widget.isHebrew)}'),
                             backgroundColor: Colors.red,
                             duration: Duration(seconds: 2),
                           ),
@@ -1139,7 +1222,7 @@ class _GameScreenState extends State<GameScreen> {
                 textStyle: TextStyle(fontWeight: FontWeight.bold),
               ),
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text('Cancel'),
+              child: Text(Strings.get('cancel', isHebrew: widget.isHebrew)),
             ),
           ],
         );
@@ -1149,12 +1232,12 @@ class _GameScreenState extends State<GameScreen> {
 
   // Helper method to get ordinal suffix (1st, 2nd, 3rd, etc.)
   String _getOrdinalSuffix(int number) {
-    if (number >= 11 && number <= 13) return 'th';
+    if (number >= 11 && number <= 13) return Strings.get('th', isHebrew: widget.isHebrew);
     switch (number % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
+      case 1: return Strings.get('st', isHebrew: widget.isHebrew);
+      case 2: return Strings.get('nd', isHebrew: widget.isHebrew);
+      case 3: return Strings.get('rd', isHebrew: widget.isHebrew);
+      default: return Strings.get('th', isHebrew: widget.isHebrew);
     }
   }
 
@@ -1235,7 +1318,7 @@ class _GameScreenState extends State<GameScreen> {
                                     Icon(Icons.help_outline,
                                         color: Colors.orange, size: 28),
                                   SizedBox(width: 8),
-                                    Text('Invalid Words Found',
+                                    Text(Strings.get('invalidWordsFound', isHebrew: widget.isHebrew),
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.deepPurple)),
@@ -1248,7 +1331,7 @@ class _GameScreenState extends State<GameScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                       Text(
-                                        'The following words are not in the dictionary:',
+                                        Strings.get('theFollowingWordsAreNotInTheDictionary', isHebrew: widget.isHebrew),
                                         style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                                       ),
                                       SizedBox(height: 12),
@@ -1280,7 +1363,7 @@ class _GameScreenState extends State<GameScreen> {
                                             SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                'Would you like to accept these words anyway, or skip your turn?',
+                                                Strings.get('wouldYouLikeToAcceptTheseWordsAnywayOrSkipYourTurn', isHebrew: widget.isHebrew),
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: Colors.orange[800],
@@ -1304,7 +1387,7 @@ class _GameScreenState extends State<GameScreen> {
                                       textStyle: TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onPressed: () => Navigator.of(context).pop(false),
-                                    child: Text('Skip Turn'),
+                                    child: Text(Strings.get('skipTurn', isHebrew: widget.isHebrew)),
                                   ),
                                   TextButton(
                                     style: TextButton.styleFrom(
@@ -1315,7 +1398,7 @@ class _GameScreenState extends State<GameScreen> {
                                       textStyle: TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                     onPressed: () => Navigator.of(context).pop(true),
-                                    child: Text('Accept Words'),
+                                    child: Text(Strings.get('acceptWords', isHebrew: widget.isHebrew)),
                                   ),
                                 ],
                               ),
@@ -1345,7 +1428,7 @@ class _GameScreenState extends State<GameScreen> {
                                   Icon(Icons.info_outline,
                                       color: Colors.deepPurple, size: 28),
                                   SizedBox(width: 8),
-                                  Text('Invalid Move',
+                                  Text(Strings.get('invalidMoveTitle', isHebrew: widget.isHebrew),
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: Colors.deepPurple)),
@@ -1354,7 +1437,7 @@ class _GameScreenState extends State<GameScreen> {
                               content: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8.0),
                                 child: Text(
-                                  'Your move is invalid. Please check your word placement.',
+                                  Strings.get('yourMoveIsInvalidPleaseCheckYourWordPlacement', isHebrew: widget.isHebrew),
                                   style: TextStyle(fontSize: 16),
                                 ),
                               ),
@@ -1368,7 +1451,7 @@ class _GameScreenState extends State<GameScreen> {
                                     textStyle: TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   onPressed: () => Navigator.of(context).pop(),
-                                  child: Text('OK'),
+                                  child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
                                 ),
                               ],
                             ),
@@ -1505,7 +1588,7 @@ class _GameScreenState extends State<GameScreen> {
                                             const SizedBox(width: 16),
                                             Expanded(
                                               child: Text(
-                                      'Bonus Collected!',
+                                      Strings.get('bonusCollected', isHebrew: widget.isHebrew),
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -1576,7 +1659,7 @@ class _GameScreenState extends State<GameScreen> {
                                               ),
                                     ),
                                     onPressed: () => Navigator.of(context).pop(),
-                                    child: const Text('OK'),
+                                    child: Text(Strings.get('ok', isHebrew: widget.isHebrew)),
                                           ),
                                   ),
                                 ],
@@ -1596,7 +1679,7 @@ class _GameScreenState extends State<GameScreen> {
                       }
                     : null,
                 icon: const Icon(Icons.check_circle_outline, size: 30),
-                label: const Text('End Turn'),
+                label: Text(Strings.get('endTurn', isHebrew: widget.isHebrew)),
               ),
             ),
           ),
@@ -1621,7 +1704,7 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   minimumSize: MaterialStateProperty.all<Size>(const Size(52, 44)),
                 ),
-                tooltip: 'Replace Letter (${gameController.replacementCost} points)',
+                tooltip: '${Strings.get('replaceLetter', isHebrew: widget.isHebrew)} (${gameController.replacementCost} ${Strings.get('points', isHebrew: widget.isHebrew)})',
                 onPressed: isMyTurn
                     ? () {
                         _showReplaceLetterDialog(context, gameController);
@@ -1651,7 +1734,7 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   minimumSize: MaterialStateProperty.all<Size>(const Size(52, 44)),
                 ),
-                tooltip: 'Skip Turn',
+                tooltip: Strings.get('skipTurn', isHebrew: widget.isHebrew),
                 onPressed: isMyTurn
                     ? () {
                         final gameController =
@@ -1695,22 +1778,22 @@ class _GameScreenState extends State<GameScreen> {
     if (isMyScore) {
       titleIcon = Icons.celebration;
       titleIconColor = Colors.orange;
-      titleText = 'You Scored!';
+      titleText = Strings.get('youScored', isHebrew: widget.isHebrew);
       backgroundColor = Colors.orange[50]!;
       borderColor = Colors.orange[200]!;
-      textColor = Colors.orange[700]!;
+      textColor = Colors.green[700]!;
       scoreColor = Colors.green[700]!;
-      encouragementText = 'Amazing work!';
+      encouragementText = Strings.get('amazingWork', isHebrew: widget.isHebrew);
       encouragementIcon = Icons.emoji_events;
     } else {
       titleIcon = Icons.info_outline;
       titleIconColor = Colors.blue;
-      titleText = '$playerName Scored';
+      titleText = '$playerName ${Strings.get('scored', isHebrew: widget.isHebrew)}';
       backgroundColor = Colors.blue[50]!;
       borderColor = Colors.blue[200]!;
       textColor = Colors.blue[700]!;
       scoreColor = Colors.black;
-      encouragementText = 'Nice play!';
+      encouragementText = Strings.get('nicePlay', isHebrew: widget.isHebrew);
       encouragementIcon = Icons.thumb_up;
     }
 
@@ -1762,7 +1845,7 @@ class _GameScreenState extends State<GameScreen> {
               textStyle: TextStyle(fontWeight: FontWeight.bold),
                                 ),
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Continue'),
+            child: Text(Strings.get('continue', isHebrew: widget.isHebrew)),
                               ),
                             ],
                           ),
@@ -1790,7 +1873,7 @@ class _GameScreenState extends State<GameScreen> {
     if (words.isNotEmpty) {
       content.add(
         Text(
-          'Words Created:',
+          Strings.get('wordsCreated', isHebrew: widget.isHebrew),
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       );
@@ -1829,7 +1912,7 @@ class _GameScreenState extends State<GameScreen> {
                       border: Border.all(color: Colors.amber[300]!),
                     ),
                     child: Text(
-                      'Accepted',
+                      Strings.get('accepted', isHebrew: widget.isHebrew),
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.amber[800],
@@ -1842,7 +1925,7 @@ class _GameScreenState extends State<GameScreen> {
                 Icon(Icons.close, color: Colors.red[400], size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Invalid',
+                  Strings.get('invalid', isHebrew: widget.isHebrew),
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.red[400],
@@ -1877,7 +1960,7 @@ class _GameScreenState extends State<GameScreen> {
             SizedBox(width: 8),
           ],
           Text(
-            'Total Points:',
+            Strings.get('totalPoints', isHebrew: widget.isHebrew),
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           SizedBox(width: 8),
@@ -1901,7 +1984,7 @@ class _GameScreenState extends State<GameScreen> {
             Icon(Icons.replay, color: Colors.green[600], size: 20),
             SizedBox(width: 8),
             Text(
-              'Extra Turn Gained!',
+              Strings.get('extraTurnGained', isHebrew: widget.isHebrew),
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.green[700],

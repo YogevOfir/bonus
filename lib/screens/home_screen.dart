@@ -8,6 +8,8 @@ import 'package:bonus/screens/game_screen.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../strings.dart';
+import '../services/preferences_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,30 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  bool _isHebrew = false;
+  final PreferencesService _preferencesService = PreferencesService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final saved = await _preferencesService.loadLanguageSetting();
+    if (saved != null) {
+      setState(() {
+        _isHebrew = saved;
+      });
+    }
+  }
+
+  void _toggleLanguage() {
+    setState(() {
+      _isHebrew = !_isHebrew;
+    });
+    _preferencesService.saveLanguageSetting(_isHebrew);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,11 +72,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            icon: Icon(Icons.language, color: Colors.deepPurple),
+                            tooltip: _isHebrew ? 'Switch to English' : Strings.get('switchToHebrew', isHebrew: _isHebrew),
+                            onPressed: () {
+                              _toggleLanguage();
+                            },
+                          ),
+                        ),
                         _buildMenuButton(
                           context,
                           icon: Icons.play_circle_fill,
-                          label: 'Start Game',
+                          label: Strings.get('startGame', isHebrew: _isHebrew),
                           color: Colors.deepPurple,
                           onPressed: () {
                             _showStartGameDialog(context);
@@ -60,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildMenuButton(
                           context,
                           icon: Icons.info_outline,
-                          label: 'Instructions',
+                          label: Strings.get('instructions', isHebrew: _isHebrew),
                           color: Colors.cyan[700]!,
                           onPressed: () {
                             _showInstructionsDialog(context);
@@ -122,7 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
             children: const [
               Icon(Icons.play_circle_fill, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Start Game', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: SizedBox(
@@ -133,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Online',
+                  label: Strings.get('onlineGame', isHebrew: _isHebrew),
                   color: Colors.deepPurple,
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
@@ -142,28 +176,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Local',
+                  label: Strings.get('localGame', isHebrew: _isHebrew),
                   color: Colors.green[700]!,
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                       return ChangeNotifierProvider(
                         create: (context) => GameController(repository: LocalGameRepository()),
-                        child: const GameScreen(roomID: 'local_room'),
+                        child: GameScreen(roomID: 'local_room', isHebrew: _isHebrew),
                       );
                     }));
                   },
                 ),
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Play vs Computer',
+                  label: Strings.get('playVsComputer', isHebrew: _isHebrew),
                   color: Colors.pink[700]!,
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
                     Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                        return ChangeNotifierProvider(
                         create: (context) => GameController(repository: LocalGameRepository()),
-                        child: const GameScreen(isAiGame: true, roomID: 'local_room'),
+                        child: GameScreen(isAiGame: true, roomID: 'local_room', isHebrew: _isHebrew),
                       );
                     }));
                   },
@@ -180,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildDialogButton(
                     dialogContext,
-                    label: 'Close',
+                    label: Strings.get('close', isHebrew: _isHebrew),
                     color: Colors.cyan,
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
@@ -198,16 +232,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDialogButton(BuildContext context, {required String label, required Color color, required VoidCallback onPressed}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 6,
+      child: SizedBox(
+        width: 220,
+        height: 44,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 4,
+          ),
+          onPressed: onPressed,
+          child: Text(label, textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr),
         ),
-        onPressed: onPressed,
-        child: Text(label),
       ),
     );
   }
@@ -220,10 +258,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
-            children: const [
+            children: [
               Icon(Icons.public, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Online Game', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              Text(Strings.get('onlineGame', isHebrew: _isHebrew), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: SizedBox(
@@ -234,7 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Create Room',
+                  label: Strings.get('createRoom', isHebrew: _isHebrew),
                   color: Colors.deepPurple,
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
@@ -243,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Join Room',
+                  label: Strings.get('joinRoom', isHebrew: _isHebrew),
                   color: Colors.green[700]!,
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
@@ -263,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildDialogButton(
                     dialogContext,
-                    label: 'Close',
+                    label: Strings.get('close', isHebrew: _isHebrew),
                     color: Colors.cyan,
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
@@ -287,10 +325,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
-            children: const [
+            children: [
               Icon(Icons.person, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Enter Your Name', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              Text(Strings.get('enterYourName', isHebrew: _isHebrew), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: SizedBox(
@@ -301,14 +339,15 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Your Name'),
+                  decoration: InputDecoration(labelText: Strings.get('yourName', isHebrew: _isHebrew)),
+                  textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
                 ),
                 _buildDialogButton(
                   dialogContext,
-                  label: 'Create',
+                  label: Strings.get('create', isHebrew: _isHebrew),
                   color: Colors.deepPurple,
                   onPressed: () async {
-                    final String playerName = nameController.text.trim().isEmpty ? 'Player 1' : nameController.text.trim();
+                    final String playerName = nameController.text.trim().isEmpty ? Strings.get('player1', isHebrew: _isHebrew) : nameController.text.trim();
                     Navigator.of(dialogContext).pop();
                     final repository = FirebaseGameRepository();
                     final roomID = await repository.createRoom(playerName);
@@ -331,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                               return ChangeNotifierProvider.value(
                                 value: gameController,
-                                child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 1),
+                                child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 1, isHebrew: _isHebrew),
                               );
                             }));
                           }
@@ -340,24 +379,25 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: Colors.white.withOpacity(0.95),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           title: Row(
-                            children: const [
+                            children: [
                               Icon(Icons.hourglass_top, color: Colors.deepPurple, size: 28),
                               SizedBox(width: 8),
-                              Text('Room Created!', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                              Text(Strings.get('roomCreated', isHebrew: _isHebrew), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                             ],
                           ),
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               SelectableText(
-                                'Your room PIN is: $roomID\n\nShare it with a friend to play.',
+                                Strings.get('roomPin', isHebrew: _isHebrew, params: {'pin': roomID}),
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
                               ),
                               const SizedBox(height: 24),
                               const CircularProgressIndicator(),
                               const SizedBox(height: 12),
-                              const Text('Waiting for player to join...', style: TextStyle(color: Colors.deepPurple)),
+                              Text(Strings.get('waitingForPlayer', isHebrew: _isHebrew), style: TextStyle(color: Colors.deepPurple)),
                             ],
                           ),
                         );
@@ -378,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildDialogButton(
                     dialogContext,
-                    label: 'Close',
+                    label: Strings.get('close', isHebrew: _isHebrew),
                     color: Colors.cyan,
                     onPressed: () {
                       Navigator.of(dialogContext).pop();
@@ -403,10 +443,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
-            children: const [
+            children: [
               Icon(Icons.login, color: Colors.deepPurple, size: 28),
               SizedBox(width: 8),
-              Text('Join Room', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              Text(Strings.get('joinRoom', isHebrew: _isHebrew), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
           content: SizedBox(
@@ -417,12 +457,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 TextField(
                   controller: pinController,
-                  decoration: const InputDecoration(labelText: 'Enter PIN'),
+                  decoration: InputDecoration(labelText: Strings.get('enterPIN', isHebrew: _isHebrew)),
                   keyboardType: TextInputType.number,
+                  textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
                 ),
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Your Name'),
+                  decoration: InputDecoration(labelText: Strings.get('yourName', isHebrew: _isHebrew)),
+                  textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
                 ),
               ],
             ),
@@ -437,14 +479,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildDialogButton(
                     dialogContext,
-                    label: 'Join',
+                    label: Strings.get('join', isHebrew: _isHebrew),
                     color: Colors.deepPurple,
                     onPressed: () async {
                       final String roomID = pinController.text.trim();
-                      final String playerName = nameController.text.trim().isEmpty ? 'Player 2' : nameController.text.trim();
+                      final String playerName = nameController.text.trim().isEmpty ? Strings.get('player2', isHebrew: _isHebrew) : nameController.text.trim();
                       if (roomID.isEmpty || roomID.length != 6) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter a valid 6-digit PIN.')),
+                          SnackBar(content: Text(Strings.get('enterValid6DigitPIN', isHebrew: _isHebrew))),
                         );
                         return;
                       }
@@ -456,12 +498,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                           return ChangeNotifierProvider(
                             create: (context) => GameController(repository: repository),
-                            child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 2),
+                            child: GameScreen(isAiGame: false, roomID: roomID, localPlayerId: 2, isHebrew: _isHebrew),
                           );
                         }));
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Room not found!')),
+                          SnackBar(content: Text(Strings.get('roomNotFound', isHebrew: _isHebrew))),
                         );
                       }
                     },
@@ -483,45 +525,17 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.white.withOpacity(0.95),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
-            children: const [
+            children: [
               Icon(Icons.info_outline, color: Colors.cyan, size: 28),
               SizedBox(width: 8),
-              Text('הוראות משחק', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              Text(Strings.get('instructions', isHebrew: _isHebrew), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
             ],
           ),
-          content: const SingleChildScrollView(
+          content: SingleChildScrollView(
             child: Directionality(
-              textDirection: TextDirection.rtl,
+              textDirection: _isHebrew ? TextDirection.rtl : TextDirection.ltr,
               child: Text(
-                '''
-1. מטרת המשחק:
-   ליצור מילים חדשות על לוח המשחק בעזרת האותיות שבידך, לצבור נקודות ולנצח את היריב.
-
-2. מהלך המשחק:
-   - כל שחקן בתורו גורר אותיות מהיד אל הלוח כדי ליצור מילה חדשה.
-   - כל האותיות שמונחות בתור חייבות להיות בשורה אחת (אופקית) או בעמודה אחת (אנכית), ללא פיצול.
-   - כל מילה חדשה חייבת להיות מחוברת למילים קיימות על הלוח (מלבד המילה הראשונה).
-
-3. חוקים נוספים:
-   - ניתן להניח אותיות רק על משבצות ריקות.
-   - אסור להניח אותיות כך שהן לא יוצרות מילה תקינה בעברית.
-   - ניתן להחזיר אותיות ליד לפני סיום התור.
-
-4. סיום תור:
-   - לאחר הנחת האותיות, לחץ על "סיום תור" כדי לחשב את הניקוד.
-   - אם לא ביצעת מהלך, תוכל ללחוץ על "דלג תור" כדי להעביר את התור ליריב.
-   - אם הזמן נגמר, התור יידלג אוטומטית והאותיות שהונחו יחזרו ליד.
-
-5. בונוסים:
-   - חלק מהמשבצות מעניקות בונוסים מיוחדים (כמו הכפלת ניקוד, תור נוסף ועוד).
-   - בונוסים מופעלים רק כאשר מניחים אות על המשבצת המסומנת.
-
-6. סיום המשחק:
-   - המשחק מסתיים כאשר כל האותיות נגמרות ואין לשחקנים אותיות ביד.
-   - המנצח הוא השחקן עם מספר הנקודות הגבוה ביותר.
-
-בהצלחה ושיהיה משחק מהנה!
-''',
+                Strings.get('gameInstructions', isHebrew: _isHebrew),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
               ),
             ),
@@ -529,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: <Widget>[
             _buildDialogButton(
               context,
-              label: 'סגור',
+              label: Strings.get('close', isHebrew: _isHebrew),
               color: Colors.cyan,
               onPressed: () {
                 Navigator.of(context).pop();
